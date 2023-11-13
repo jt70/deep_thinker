@@ -1,7 +1,3 @@
-Reinforcement Learning in Rust.
+Reinforcement Learning in Rust. In prototype stage, not ready for use.
 
-## Run
-
-```bash
-cargo run --release --package deep_thinker --bin deep_thinker
-```
+Check out the examples folder https://github.com/jt70/deep_thinker/tree/main/examples

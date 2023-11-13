@@ -1,16 +1,11 @@
-[package]
-name = "deep_thinker"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+resolver = "2"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+members = [
+    "deep_thinker",
+    "examples/*",
+]
 
-[dependencies]
-burn = { version = "0.10.0", features = ["train", "wgpu", "ndarray", "autodiff"] }
-burn-autodiff = "0.10.0"
-burn-ndarray = "0.10.0"
-burn-wgpu = "0.10.0"
-burn-train = "0.10.0"
+[workspace.dependencies]
 rand = "0.8.5"
-
 serde = "1"

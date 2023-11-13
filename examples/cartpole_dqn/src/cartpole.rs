@@ -1,7 +1,7 @@
 use rand::distributions::Uniform;
 use rand::prelude::*;
 use std::f32::consts::PI;
-use crate::model::Environment;
+use deep_thinker::model::Environment;
 
 pub struct Cartpole {
     pub state: Vec<f32>,

@@ -1,1 +1,3 @@
 /target
+/deep_thinker/target/
+/examples/cartpole_dqn/target/
