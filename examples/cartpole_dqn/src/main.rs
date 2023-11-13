@@ -9,12 +9,10 @@ use burn_autodiff::ADBackendDecorator;
 use burn_wgpu::AutoGraphicsApi;
 use rand::distributions::{Distribution, Uniform};
 use rand::Rng;
-use crate::model::Environment;
-use crate::replay_buffer::ReplayBuffer;
+use deep_thinker::model::Environment;
+use deep_thinker::replay_buffer::ReplayBuffer;
 
 mod cartpole;
-mod model;
-mod replay_buffer;
 
 type MyBackend = WgpuBackend<AutoGraphicsApi, f32, i32>;
 type MyAutodiffBackend = ADBackendDecorator<MyBackend>;
