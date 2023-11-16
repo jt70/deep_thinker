@@ -11,7 +11,7 @@ use burn_autodiff::ADBackendDecorator;
 use burn_wgpu::AutoGraphicsApi;
 use rand::distributions::{Distribution, Uniform};
 use rand::Rng;
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::{bounded, Sender};
 use crate::model::{AgentMessage, DQNConfig, EnvironmentMessage};
 use crate::replay_buffer::ReplayBuffer;
 
@@ -62,7 +62,9 @@ fn linear_schedule(start_e: f32, end_e: f32, duration: f32, t: i32) -> f32 {
     end_e.max(slope * t as f32 + start_e)
 }
 
-pub fn spawn_dqn_actor(config: DQNConfig, receiver: Receiver<AgentMessage>, sender: Sender<EnvironmentMessage>) {
+pub fn spawn_dqn_actor(config: DQNConfig) -> Sender<AgentMessage> {
+    let (sender, receiver) = bounded(1000);
+
     thread::spawn(move || {
         let mut rng = rand::thread_rng();
         let random_action_sampler = Uniform::from(0..config.num_actions as i32);
@@ -77,16 +79,19 @@ pub fn spawn_dqn_actor(config: DQNConfig, receiver: Receiver<AgentMessage>, send
 
         let mut replay_buffer = ReplayBuffer::new(10_000);
 
-        let mut episode_reward = 0.0;
-        let mut episode_number = 0;
         let mut global_step = 0;
         let learning_rate: LearningRate = config.learning_rate;
 
         let mut previous_observation = HashMap::<String, (Vec<f32>, i32)>::new();
+        let mut env_map = HashMap::<String, Sender<EnvironmentMessage>>::new();
 
         loop {
             let agent_message = receiver.recv().unwrap();
             match agent_message {
+                AgentMessage::LinkEnv { env_id, env_sender } => {
+                    env_map.insert(env_id, env_sender.clone());
+                    env_sender.send(EnvironmentMessage::LinkAck).unwrap();
+                }
                 AgentMessage::GetFirstAction { env_id, obs } => {
                     let epsilon = linear_schedule(config.start_epsilon, config.end_epsilon, config.exploration_fraction * config.total_timesteps as f32, global_step);
 
@@ -101,7 +106,7 @@ pub fn spawn_dqn_actor(config: DQNConfig, receiver: Receiver<AgentMessage>, send
 
                     previous_observation.insert(env_id.clone(), (obs.clone(), action));
 
-                    sender.send(EnvironmentMessage::Action(action)).unwrap();
+                    env_map.get(&env_id).unwrap().send(EnvironmentMessage::Action(action)).unwrap();
                 }
                 AgentMessage::GetAction { env_id, obs, reward, done } => {
                     // store transition in replay buffer
@@ -110,12 +115,8 @@ pub fn spawn_dqn_actor(config: DQNConfig, receiver: Receiver<AgentMessage>, send
 
                     if done {
                         previous_observation.remove(&env_id);
-
-                        println!("Episode {}, reward {}, global_step {}", episode_number, episode_reward, global_step);
-                        episode_reward = 0.0;
-                        episode_number += 1;
                         // TODO: hack, change API
-                        sender.send(EnvironmentMessage::Action(0)).unwrap();
+                        env_map.get(&env_id).unwrap().send(EnvironmentMessage::Action(0)).unwrap();
                     } else {
                         let epsilon = linear_schedule(config.start_epsilon, config.end_epsilon, config.exploration_fraction * config.total_timesteps as f32, global_step);
 
@@ -130,7 +131,7 @@ pub fn spawn_dqn_actor(config: DQNConfig, receiver: Receiver<AgentMessage>, send
 
                         previous_observation.insert(env_id.clone(), (obs.clone(), action));
 
-                        sender.send(EnvironmentMessage::Action(action)).unwrap();
+                        env_map.get(&env_id).unwrap().send(EnvironmentMessage::Action(action)).unwrap();
                     }
 
                     if global_step > config.learning_starts {
@@ -173,6 +174,8 @@ pub fn spawn_dqn_actor(config: DQNConfig, receiver: Receiver<AgentMessage>, send
             global_step += 1;
         }
     });
+
+    sender
 }
 
 // TODO: probably a better way to do this

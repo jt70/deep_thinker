@@ -1,4 +1,6 @@
-use deep_thinker::model::{DQNConfig, Environment, local_dqn_agent, Agent};
+use std::thread;
+use crossbeam_channel::Sender;
+use deep_thinker::model::{DQNConfig, Environment, local_dqn_agent, Agent, AgentMessage, ChannelAgentProxy};
 
 mod cartpole;
 
@@ -23,25 +25,43 @@ fn main() {
         total_timesteps: 500_000,
     };
 
-    let mut env = cartpole::Cartpole::new();
-    let agent = local_dqn_agent(config);
+    let agent_sender = local_dqn_agent(config);
 
-    let total_episodes = 5000;
-    for episode in 0..total_episodes {
-        let mut obs = env.reset();
+    let env_count = 10;
+    let mut handles = Vec::with_capacity( env_count);
+    for i in 0..env_count {
+        println!("Spawning env {}", i);
+        let handle = spawn_environment(format!("env{}", i), agent_sender.clone(), 500);
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+}
+
+fn spawn_environment(env_id: String, agent_sender: Sender<AgentMessage>, episode_count: i32) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        let mut env = cartpole::Cartpole::new();
+
+        let agent = ChannelAgentProxy::new(env_id.clone(), agent_sender.clone());
         let mut episode_reward = 0.0;
-        let mut action = agent.get_first_action(obs.clone());
-        loop {
-            let (next_obs, reward, done) = env.step(action);
-            episode_reward += reward;
-            obs = next_obs;
+        for episode in 0..episode_count {
+            let mut obs = env.reset();
+            let mut action = agent.get_first_action(obs.clone());
+            loop {
+                let (next_obs, reward, done) = env.step(action);
+                obs = next_obs;
 
-            action = agent.get_action(obs.clone(), reward, done);
+                episode_reward += reward;
+                action = agent.get_action(obs.clone(), reward, done);
 
-            if done {
-                break;
+                if done {
+                    println!("Env id {}, Episode {}, Reward {}", env_id, episode, episode_reward);
+                    episode_reward = 0.0;
+                    break;
+                }
             }
         }
-        println!("Episode {}, reward {}", episode, episode_reward);
-    }
+    })
 }

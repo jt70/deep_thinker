@@ -40,17 +40,43 @@ pub enum AgentMessage {
         reward: f32,
         done: bool,
     },
+    LinkEnv {
+        env_id: String,
+        env_sender: Sender<EnvironmentMessage>,
+    },
 }
 
 #[derive(Debug)]
 pub enum EnvironmentMessage {
     Action(i32),
+    LinkAck
 }
 
 pub struct ChannelAgentProxy {
     sender: Sender<AgentMessage>,
     receiver: Receiver<EnvironmentMessage>,
     env_id: String,
+}
+
+impl ChannelAgentProxy {
+    // send message to the agent to link the environment
+    pub fn new(env_id: String, sender: Sender<AgentMessage>) -> ChannelAgentProxy {
+        let (env_sender, env_receiver) = bounded::<EnvironmentMessage>(1000);
+        // give env sender to the agent so it knows where to send actions
+        sender.send(AgentMessage::LinkEnv {
+            env_id: env_id.clone(),
+            env_sender,
+        }).unwrap();
+
+        // should be a link ack
+        env_receiver.recv().unwrap();
+
+        ChannelAgentProxy {
+            sender,
+            receiver: env_receiver,
+            env_id,
+        }
+    }
 }
 
 impl Agent for ChannelAgentProxy {
@@ -62,6 +88,7 @@ impl Agent for ChannelAgentProxy {
         let env_message = self.receiver.recv().unwrap();
         match env_message {
             EnvironmentMessage::Action(action) => action,
+            _ => panic!("Unexpected action"),
         }
     }
 
@@ -75,19 +102,12 @@ impl Agent for ChannelAgentProxy {
         let env_message = self.receiver.recv().unwrap();
         match env_message {
             EnvironmentMessage::Action(action) => action,
+            _ => panic!("Unexpected action"),
         }
     }
 }
 
-pub fn local_dqn_agent(config: DQNConfig) -> ChannelAgentProxy {
-    let (agent_sender, agent_receiver) = bounded(1000);
-    let (env_sender, env_receiver) = bounded(1000);
-
-    spawn_dqn_actor(config, agent_receiver, env_sender);
-
-    ChannelAgentProxy {
-        sender: agent_sender,
-        receiver: env_receiver,
-        env_id: "env".to_string(),
-    }
+pub fn local_dqn_agent(config: DQNConfig) -> Sender<AgentMessage> {
+    let agent_sender = spawn_dqn_actor(config);
+    agent_sender
 }
