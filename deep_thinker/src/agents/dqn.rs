@@ -1,164 +1,146 @@
 use burn::tensor::backend::{ADBackend, Backend};
 use burn::backend::WgpuBackend;
 use burn::{LearningRate, nn};
-use burn::module::Module;
-use burn::nn::loss::{MSELoss, Reduction};
+use burn::module::{ADModule, Module};
+use burn::nn::loss::CrossEntropyLoss;
 use burn::optim::{AdamConfig, GradientsParams, Optimizer};
 use burn::tensor::{Data, Int, Shape, Tensor};
-use burn_autodiff::ADBackendDecorator;
-use burn_wgpu::AutoGraphicsApi;
-use rand::distributions::{Distribution, Uniform};
-use rand::prelude::ThreadRng;
-use rand::Rng;
-use crate::replay_buffer::ReplayBuffer;
-
-type MyBackend = WgpuBackend<AutoGraphicsApi, f32, i32>;
-type MyAutodiffBackend = ADBackendDecorator<MyBackend>;
-
-pub struct DQNConfig {
-    pub start_epsilon: f32,
-    pub end_epsilon: f32,
-    pub exploration_fraction: f32,
-    pub learning_starts: i32,
-    pub train_frequency: i32,
-    pub batch_size: usize,
-    pub learning_rate: f32,
-    pub target_network_frequency: i32,
-    pub gamma: f32,
-    pub num_actions: usize,
-    pub num_inputs: i32,
-    pub hidden_1_size: i32,
-    pub hidden_2_size: i32,
-    pub total_timesteps: u64,
-}
-
-pub struct DQNAgent {
-    learning_rate: LearningRate,
-    random_action_sampler: Uniform<i32>,
-    rand: ThreadRng,
-    start_epsilon: f32,
-    end_epsilon: f32,
-    exploration_fraction: f32,
-    total_timesteps: u64,
-    global_step: u64,
-    q_network: QNetwork<MyAutodiffBackend>,
-    target_network: QNetwork<MyAutodiffBackend>,
-    rb: ReplayBuffer,
-    //optim: dyn Optimizer<MyAutodiffBackend, QNetwork<MyAutodiffBackend>, Record=()>,
-}
-
-impl DQNAgent {
-    pub fn new(config: DQNConfig) -> Self {
-        //    let gamma = Tensor::<MyAutodiffBackend, 2>::full([batch_size, 1], 0.99);
-        let ones = Tensor::<MyAutodiffBackend, 2>::full([config.batch_size, 1], 1.0);
-
-        let random_action_sampler = Uniform::from(0..config.num_actions as i32);
-        let rand = rand::thread_rng();
-        let mut q_network = QNetwork::<MyAutodiffBackend>::new(4, 120, 84, config.num_actions);
-
-        let optimizer = AdamConfig::new();
-        let mut optim = optimizer.init::<MyAutodiffBackend, QNetwork<MyAutodiffBackend>>();
-
-//        let mut optim: dyn Optimizer<MyAutodiffBackend, QNetwork<MyAutodiffBackend>> = optimizer.init();
-        let mut target_network = q_network.clone();
-
-        let mut rb = ReplayBuffer::new(10_000);
-
-        DQNAgent {
-            learning_rate: LearningRate::from(config.learning_rate),
-            random_action_sampler,
-            rand,
-            start_epsilon: config.start_epsilon,
-            end_epsilon: config.end_epsilon,
-            exploration_fraction: config.exploration_fraction,
-            total_timesteps: config.total_timesteps,
-            global_step: 0,
-            q_network,
-            target_network,
-            rb,
-            //optim,
-        }
-    }
-
-    pub fn get_first_action(&self, obs: Vec<f32>) -> i32 {
-        self.random_action_sampler.sample(&mut rand::thread_rng())
-    }
-
-    pub fn end_episode(&self, obs: Vec<f32>, reward: f32) {
-    }
-
-    pub fn get_action(&mut self, obs: Vec<f32>, reward: f32) -> i32 {
-        let epsilon = linear_schedule(self.start_epsilon, self.end_epsilon, self.exploration_fraction * self.total_timesteps as f32, self.global_step);
-
-        let action = if self.rand.gen::<f32>() < epsilon {
-            self.random_action_sampler.sample(&mut self.rand)
-        } else {
-            let data = Data::new(obs.clone(), Shape::new([1, obs.len()]));
-            let input = Tensor::<MyAutodiffBackend, 2>::from_data(data);
-            let action = self.q_network.forward(input).argmax(1).into_scalar();
-            action
-        };
-
-        action
-    }
-
-
-}
 
 #[derive(Module, Debug)]
 struct QNetwork<B: Backend> {
     fc1: nn::Linear<B>,
-    fc2: nn::Linear<B>,
-    fc3: nn::Linear<B>,
-    activation: nn::ReLU,
 }
 
-impl<B: ADBackend> QNetwork<B> {
-    pub fn new(input_size: usize, fc1_size: usize, fc2_size: usize, output_size: usize) -> Self {
-        let fc1 = nn::LinearConfig::new(input_size, fc1_size)
-            .with_bias(true)
-            .init();
-        let fc2 = nn::LinearConfig::new(fc1_size, fc2_size)
-            .with_bias(true)
-            .init();
-        let fc3 = nn::LinearConfig::new(fc2_size, output_size)
+pub struct Agent<B: Backend> {
+    model: QNetwork<B>,
+    tensor: Tensor<B, 2>,
+    pub optimize: fn(Tensor<B, 2>, Tensor<B, 1, Int>, QNetwork<B>, LearningRate) -> u32,
+}
+
+impl<B> Agent<B>
+    where
+        B: ADBackend,
+{
+    pub fn new() -> Self {
+        let optimizer = AdamConfig::new();
+        let mut optim = optimizer.init::<B, QNetwork<B>>();
+
+        let optimize = |logits: Tensor<B, 2>, targets: Tensor<B, 1, Int>, model: QNetwork<B>, lr: LearningRate| -> u32 {
+            let loss = CrossEntropyLoss::new(None).forward(logits, targets);
+            let grads = loss.backward();
+            let grads = GradientsParams::from_grads(grads, &model);
+            let new_model = optim.step(lr, model, grads);
+            1
+        };
+
+        let fc1 = nn::LinearConfig::new(2, 2)
             .with_bias(true)
             .init();
 
-        Self {
+        let model = QNetwork::<B> {
             fc1,
-            fc2,
-            fc3,
-            activation: nn::ReLU::new(),
-        }
+        };
+
+        let tensor = Tensor::<B, 2>::full([10, 1], 1.0);
+
+        let agent = Agent {
+            model,
+            tensor,
+            optimize,
+        };
+
+        agent
     }
 
-    pub fn forward(&self, input: Tensor<B, 2>) -> Tensor<B, 2> {
-        let x = self.fc1.forward(input);
-        let x = self.activation.forward(x);
-        let x = self.fc2.forward(x);
-        let x = self.activation.forward(x);
-        let actions = self.fc3.forward(x);
-
-        actions
+    pub fn step(&self) -> u32 {
+        //(self.add_one_v2)(1)
+        0
     }
 }
 
-fn linear_schedule(start_e: f32, end_e: f32, duration: f32, t: u64) -> f32 {
-    let slope = (end_e - start_e) / duration;
-    end_e.max(slope * t as f32 + start_e)
-}
+//
+//
+// impl<M, O, B> DQNAgent<M, O, B>
+//     where
+//         B: ADBackend,
+//         M: ADModule<B>,
+//         O: Optimizer<M, B>,
+// {
+//     pub fn new(config: DQNConfig) -> Self {
+//         //    let gamma = Tensor::<MyAutodiffBackend, 2>::full([batch_size, 1], 0.99);
+//         let ones = Tensor::<MyAutodiffBackend, 2>::full([config.batch_size, 1], 1.0);
+//
+//         let random_action_sampler = Uniform::from(0..config.num_actions as i32);
+//         let rand = rand::thread_rng();
+//         let mut q_network = QNetwork::<MyAutodiffBackend>::new(4, 120, 84, config.num_actions);
+//
+//         let optimizer = AdamConfig::new();
+//         let optim = optimizer.init::<MyAutodiffBackend, QNetwork<MyAutodiffBackend>>();
+//
+// //        let mut optim: dyn Optimizer<MyAutodiffBackend, QNetwork<MyAutodiffBackend>> = optimizer.init();
+//         let mut target_network = q_network.clone();
+//
+//         let mut rb = ReplayBuffer::new(10_000);
+//
+//         DQNAgent {
+//             // learning_rate: LearningRate::from(config.learning_rate),
+//             // random_action_sampler,
+//             // rand,
+//             // start_epsilon: config.start_epsilon,
+//             // end_epsilon: config.end_epsilon,
+//             // exploration_fraction: config.exploration_fraction,
+//             // total_timesteps: config.total_timesteps,
+//             // global_step: 0,
+//             // rb,
+//             q_network,
+//             target_network,
+//             optim,
+//             ones
+//         }
+//     }
+//
+//     pub fn get_first_action(&self, obs: Vec<f32>) -> i32 {
+//         //self.random_action_sampler.sample(&mut rand::thread_rng())
+//         0
+//     }
+//
+//     pub fn end_episode(&self, obs: Vec<f32>, reward: f32) {
+//     }
+//
+//     pub fn get_action(&mut self, obs: Vec<f32>, reward: f32) -> i32 {
+//         0
+//         // let epsilon = linear_schedule(self.start_epsilon, self.end_epsilon, self.exploration_fraction * self.total_timesteps as f32, self.global_step);
+//         //
+//         // let action = if self.rand.gen::<f32>() < epsilon {
+//         //     self.random_action_sampler.sample(&mut self.rand)
+//         // } else {
+//         //     let data = Data::new(obs.clone(), Shape::new([1, obs.len()]));
+//         //     let input = Tensor::<MyAutodiffBackend, 2>::from_data(data);
+//         //     let action = self.q_network.forward(input).argmax(1).into_scalar();
+//         //     action
+//         // };
+//         //
+//         // action
+//     }
+//
+//
+// }
 
-// TODO: probably a better way to do this
-fn vecs_to_tensor(input: Vec<Vec<f32>>) -> Tensor<MyAutodiffBackend, 2> {
-    let input_vectors = input.iter().map(|v|
-        {
-            let data = Data::new(v.clone(), Shape::new([1, v.len()]));
-            Tensor::<MyAutodiffBackend, 2>::from_data(data)
-        }).collect::<Vec<Tensor<MyAutodiffBackend, 2>>>();
-    let t = Tensor::cat(input_vectors, 0);
-    t
-}
+// fn linear_schedule(start_e: f32, end_e: f32, duration: f32, t: u64) -> f32 {
+//     let slope = (end_e - start_e) / duration;
+//     end_e.max(slope * t as f32 + start_e)
+// }
+//
+// // TODO: probably a better way to do this
+// fn vecs_to_tensor(input: Vec<Vec<f32>>) -> Tensor<MyAutodiffBackend, 2> {
+//     let input_vectors = input.iter().map(|v|
+//         {
+//             let data = Data::new(v.clone(), Shape::new([1, v.len()]));
+//             Tensor::<MyAutodiffBackend, 2>::from_data(data)
+//         }).collect::<Vec<Tensor<MyAutodiffBackend, 2>>>();
+//     let t = Tensor::cat(input_vectors, 0);
+//     t
+// }
 
 /*
 
