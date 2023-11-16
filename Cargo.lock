@@ -633,6 +633,7 @@ dependencies = [
  "burn-ndarray",
  "burn-train",
  "burn-wgpu",
+ "crossbeam-channel",
  "rand",
  "serde",
 ]

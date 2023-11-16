@@ -9,3 +9,4 @@ members = [
 [workspace.dependencies]
 rand = "0.8.5"
 serde = "1"
+crossbeam-channel = "0.5.8"
