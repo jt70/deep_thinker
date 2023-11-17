@@ -393,6 +393,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "cartpole_dqn_zenoh"
+version = "0.1.0"
+
+[[package]]
 name = "cassowary"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -685,6 +689,10 @@ name = "either"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
+
+[[package]]
+name = "environments"
+version = "0.1.0"
 
 [[package]]
 name = "errno"
@@ -2679,6 +2687,17 @@ dependencies = [
  "quote",
  "syn 1.0.109",
 ]
+
+[[package]]
+name = "zenoh_client"
+version = "0.1.0"
+dependencies = [
+ "rmp",
+]
+
+[[package]]
+name = "zenoh_server"
+version = "0.1.0"
 
 [[package]]
 name = "zerocopy"

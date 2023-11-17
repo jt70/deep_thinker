@@ -3,6 +3,9 @@ resolver = "2"
 
 members = [
     "deep_thinker",
+    "zenoh_server",
+    "zenoh_client",
+    "environments",
     "examples/*",
 ]
 
