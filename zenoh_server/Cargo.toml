@@ -6,3 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+zenoh = { workspace = true }
+async-std = { workspace = true, features = ["attributes"] }
+clap = { workspace = true }
+env_logger = { workspace = true }
+futures = { workspace = true }

@@ -13,3 +13,8 @@ members = [
 rand = "0.8.5"
 serde = "1"
 crossbeam-channel = "0.5.8"
+zenoh = "0.10.0-rc"
+clap = "3.2.23"
+async-std = { version = "=1.12.0", default-features = false }
+env_logger = "0.10.0"
+futures = "0.3.25"
