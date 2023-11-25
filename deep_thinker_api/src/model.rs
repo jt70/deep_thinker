@@ -1,5 +1,4 @@
 use crossbeam_channel::{bounded, Receiver, Sender};
-use crate::agents::dqn::spawn_dqn_actor;
 
 pub trait Environment {
     fn reset(&mut self) -> Vec<f32>;
@@ -53,9 +52,9 @@ pub enum EnvironmentMessage {
 }
 
 pub struct ChannelAgentProxy {
-    sender: Sender<AgentMessage>,
-    receiver: Receiver<EnvironmentMessage>,
-    env_id: String,
+    pub sender: Sender<AgentMessage>,
+    pub receiver: Receiver<EnvironmentMessage>,
+    pub env_id: String,
 }
 
 impl ChannelAgentProxy {
@@ -105,9 +104,4 @@ impl Agent for ChannelAgentProxy {
             _ => panic!("Unexpected action"),
         }
     }
-}
-
-pub fn local_dqn_agent(config: DQNConfig) -> Sender<AgentMessage> {
-    let agent_sender = spawn_dqn_actor(config);
-    agent_sender
 }

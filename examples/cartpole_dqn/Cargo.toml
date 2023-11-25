@@ -13,6 +13,8 @@ burn-wgpu = "0.10.0"
 burn-train = "0.10.0"
 
 deep_thinker = { path = "../../deep_thinker" }
+deep_thinker_api = { path = "../../deep_thinker_api" }
+environments = { path = "../../environments" }
 rand = { workspace = true }
 serde = { workspace = true }
 crossbeam-channel = { workspace = true }

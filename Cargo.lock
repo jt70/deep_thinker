@@ -680,6 +680,8 @@ dependencies = [
  "burn-wgpu",
  "crossbeam-channel",
  "deep_thinker",
+ "deep_thinker_api",
+ "environments",
  "rand",
  "serde",
 ]
@@ -692,6 +694,8 @@ dependencies = [
  "clap",
  "env_logger",
  "futures",
+ "serde",
+ "serde_json",
  "zenoh",
 ]
 
@@ -1032,8 +1036,16 @@ dependencies = [
  "burn-train",
  "burn-wgpu",
  "crossbeam-channel",
+ "deep_thinker_api",
  "rand",
  "serde",
+]
+
+[[package]]
+name = "deep_thinker_api"
+version = "0.1.0"
+dependencies = [
+ "crossbeam-channel",
 ]
 
 [[package]]
@@ -1128,6 +1140,10 @@ dependencies = [
 [[package]]
 name = "environments"
 version = "0.1.0"
+dependencies = [
+ "deep_thinker_api",
+ "rand",
+]
 
 [[package]]
 name = "equivalent"
@@ -4925,6 +4941,8 @@ dependencies = [
  "clap",
  "env_logger",
  "futures",
+ "serde",
+ "serde_json",
  "zenoh",
 ]
 

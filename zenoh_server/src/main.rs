@@ -19,6 +19,13 @@ use std::convert::TryFrom;
 use std::time::Duration;
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Point {
+    x: i32,
+    y: i32,
+}
 
 #[async_std::main]
 async fn main() {
@@ -40,9 +47,15 @@ async fn main() {
     loop {
         select!(
             sample = subscriber.recv_async() => {
-                let sample = sample.unwrap();
+                let s = sample.unwrap();
+
+                let sample_string = s.value.to_string();
+                let deserialized: Point = serde_json::from_str(&sample_string).unwrap();
+                // Prints deserialized = Point { x: 1, y: 2 }
+                println!("deserialized = {:?}", deserialized);
+
                 println!(">> [Subscriber] Received {} ('{}': '{}')",
-                    sample.kind, sample.key_expr.as_str(), sample.value);
+                    s.kind, s.key_expr.as_str(), s.value);
             },
 
             _ = stdin.read_exact(&mut input).fuse() => {

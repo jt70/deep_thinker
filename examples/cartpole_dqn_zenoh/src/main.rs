@@ -14,19 +14,31 @@
 use clap::{App, Arg};
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Point {
+    x: i32,
+    y: i32,
+}
 
 #[async_std::main]
 async fn main() {
     // initiate logging
     env_logger::init();
 
-    let (config, key_expr, value) = parse_args();
+    let (config, key_expr, _value) = parse_args();
 
     println!("Opening session...");
     let session = zenoh::open(config).res().await.unwrap();
 
-    println!("Putting Float ('{key_expr}': '{value}')...");
-    session.put(&key_expr, value).res().await.unwrap();
+    let point = Point { x: 1, y: 2 };
+
+    // Convert the Point to a JSON string.
+    let serialized = serde_json::to_string(&point).unwrap();
+
+    println!("Putting string ('{key_expr}': '{serialized}')...");
+    session.put(&key_expr, serialized).res().await.unwrap();
 
     session.close().res().await.unwrap();
 }

@@ -12,7 +12,7 @@ use burn_wgpu::AutoGraphicsApi;
 use rand::distributions::{Distribution, Uniform};
 use rand::Rng;
 use crossbeam_channel::{bounded, Sender};
-use crate::model::{AgentMessage, DQNConfig, EnvironmentMessage};
+use deep_thinker_api::model::{AgentMessage, DQNConfig, EnvironmentMessage};
 use crate::replay_buffer::ReplayBuffer;
 
 type MyBackend = WgpuBackend<AutoGraphicsApi, f32, i32>;
@@ -176,6 +176,11 @@ pub fn spawn_dqn_actor(config: DQNConfig) -> Sender<AgentMessage> {
     });
 
     sender
+}
+
+pub fn local_dqn_agent(config: DQNConfig) -> Sender<AgentMessage> {
+    let agent_sender = spawn_dqn_actor(config);
+    agent_sender
 }
 
 // TODO: probably a better way to do this

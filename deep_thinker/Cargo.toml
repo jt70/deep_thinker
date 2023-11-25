@@ -14,3 +14,4 @@ burn-autodiff = "0.10.0"
 burn-ndarray = "0.10.0"
 burn-wgpu = "0.10.0"
 burn-train = "0.10.0"
+deep_thinker_api = { path = "../deep_thinker_api" }

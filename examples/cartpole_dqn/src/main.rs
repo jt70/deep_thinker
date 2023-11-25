@@ -1,8 +1,9 @@
 use std::thread;
 use crossbeam_channel::Sender;
-use deep_thinker::model::{DQNConfig, Environment, local_dqn_agent, Agent, AgentMessage, ChannelAgentProxy};
-
-mod cartpole;
+use deep_thinker::agents::dqn::local_dqn_agent;
+use deep_thinker_api::model::{Agent, AgentMessage, ChannelAgentProxy, DQNConfig};
+use environments::cartpole;
+use deep_thinker_api::model::Environment;
 
 fn main() {
     let num_inputs = 4;

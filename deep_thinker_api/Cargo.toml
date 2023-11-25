@@ -1,13 +1,9 @@
 [package]
-name = "zenoh_client"
+name = "deep_thinker_api"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-
-[dependencies.rmp]
-rmp = "^0.8"
-zenoh = { workspace = true }
-serde_json = { workspace = true }
+crossbeam-channel = { workspace = true }
