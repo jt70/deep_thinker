@@ -692,7 +692,10 @@ version = "0.1.0"
 dependencies = [
  "async-std",
  "clap",
+ "crossbeam-channel",
+ "deep_thinker_api",
  "env_logger",
+ "environments",
  "futures",
  "serde",
  "serde_json",
