@@ -1,16 +1,4 @@
-//
-// Copyright (c) 2023 ZettaScale Technology
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
-// which is available at https://www.apache.org/licenses/LICENSE-2.0.
-//
-// SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
-//
-// Contributors:
-//   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
-//
+use std::collections::HashMap;
 use async_std::task::sleep;
 use clap::{App, Arg};
 use futures::prelude::*;
@@ -19,12 +7,43 @@ use std::convert::TryFrom;
 use std::time::Duration;
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;
-use serde::{Deserialize, Serialize};
+use deep_thinker_api::model::{AgentMessage, DQNExperiment};
+use deep_thinker::agents::dqn::local_dqn_agent;
+use crossbeam_channel::Sender;
 
-#[derive(Serialize, Deserialize, Debug)]
-struct Point {
-    x: i32,
-    y: i32,
+fn handle_create_agent_message(s: Sample, agents: &mut HashMap<String, Sender<AgentMessage>>) {
+    println!("{}", s);
+    let sample_string = s.value.to_string();
+    let experiment: DQNExperiment = serde_json::from_str(&sample_string).unwrap();
+
+    println!(">> [Subscriber] Received {} ('{}': '{}')", s.kind, s.key_expr.as_str(), s.value);
+
+    if !agents.contains_key(&experiment.id) {
+        let sender = local_dqn_agent(experiment.config);
+
+        agents.insert(experiment.id.clone(), sender);
+        println!("Added agent {}", experiment.id);
+    }
+}
+
+fn handle_spawn_env_message(s: Sample, key: &str, agents: &mut HashMap<String, Sender<AgentMessage>>) {
+    let env_id = s.value.to_string();
+    let agent_id = key.split("/").last().unwrap().to_string();
+    let sender = agents.get(&agent_id).unwrap();
+//    spawn_environment(agent_id, env_id, sender.clone(), 500);
+
+    println!("{}", s);
+    let sample_string = s.value.to_string();
+    let experiment: DQNExperiment = serde_json::from_str(&sample_string).unwrap();
+
+    println!(">> [Subscriber] Received {} ('{}': '{}')", s.kind, s.key_expr.as_str(), s.value);
+
+    if !agents.contains_key(&experiment.id) {
+        let sender = local_dqn_agent(experiment.config);
+
+        agents.insert(experiment.id.clone(), sender);
+        println!("Added agent {}", experiment.id);
+    }
 }
 
 #[async_std::main]
@@ -41,6 +60,8 @@ async fn main() {
 
     let subscriber = session.declare_subscriber(&key_expr).res().await.unwrap();
 
+    let mut agents = HashMap::new();
+
     println!("Enter 'q' to quit...");
     let mut stdin = async_std::io::stdin();
     let mut input = [0_u8];
@@ -48,14 +69,15 @@ async fn main() {
         select!(
             sample = subscriber.recv_async() => {
                 let s = sample.unwrap();
+                let key: &str = s.key_expr.as_str();
 
-                let sample_string = s.value.to_string();
-                let deserialized: Point = serde_json::from_str(&sample_string).unwrap();
-                // Prints deserialized = Point { x: 1, y: 2 }
-                println!("deserialized = {:?}", deserialized);
-
-                println!(">> [Subscriber] Received {} ('{}': '{}')",
-                    s.kind, s.key_expr.as_str(), s.value);
+                if key.starts_with("agent_server/dqn/create_agent") {
+                    handle_create_agent_message(s, &mut agents);
+                } else if key.starts_with("agent_server/dqn/spawn_env") {
+                    handle_spawn_env_message(s, key, &mut agents);
+                } else {
+                    println!(">> [Subscriber] Received {} ('{}': '{}')", s.kind, s.key_expr.as_str(), s.value);
+                }
             },
 
             _ = stdin.read_exact(&mut input).fuse() => {
@@ -83,7 +105,7 @@ fn parse_args() -> (Config, KeyExpr<'static>) {
         ))
         .arg(
             Arg::from_usage("-k, --key=[KEYEXPR] 'The key expression to subscribe to.'")
-                .default_value("demo/example/**"),
+                .default_value("agent_server/dqn/**"),
         )
         .arg(Arg::from_usage(
             "-c, --config=[FILE]      'A configuration file.'",

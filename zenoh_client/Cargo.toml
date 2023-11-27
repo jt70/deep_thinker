@@ -3,11 +3,13 @@ name = "zenoh_client"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-
-[dependencies.rmp]
-rmp = "^0.8"
 zenoh = { workspace = true }
+async-std = { workspace = true, features = ["attributes"] }
+clap = { workspace = true }
+env_logger = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
+deep_thinker_api = { path = "../deep_thinker_api" }
+crossbeam-channel = { workspace = true }

@@ -1,4 +1,5 @@
 use crossbeam_channel::{bounded, Receiver, Sender};
+use serde::{Deserialize, Serialize};
 
 pub trait Environment {
     fn reset(&mut self) -> Vec<f32>;
@@ -10,6 +11,7 @@ pub trait Agent {
     fn get_action(&self, observation: Vec<f32>, reward: f32, done: bool) -> i32;
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DQNConfig {
     pub start_epsilon: f32,
     pub end_epsilon: f32,
@@ -25,6 +27,12 @@ pub struct DQNConfig {
     pub hidden_1_size: usize,
     pub hidden_2_size: usize,
     pub total_timesteps: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DQNExperiment {
+    pub id: String,
+    pub config: DQNConfig,
 }
 
 #[derive(Debug)]

@@ -9,7 +9,10 @@ edition = "2021"
 zenoh = { workspace = true }
 async-std = { workspace = true, features = ["attributes"] }
 clap = { workspace = true }
+crossbeam-channel = { workspace = true }
 env_logger = { workspace = true }
 futures = { workspace = true }
 serde_json = { workspace = true }
 serde = { version = "1.0.192", features = ["derive"] }
+deep_thinker_api = { path = "../deep_thinker_api" }
+deep_thinker = { path = "../deep_thinker" }

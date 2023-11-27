@@ -14,5 +14,6 @@ futures = { workspace = true }
 serde_json = { workspace = true }
 serde = { version = "1.0.192", features = ["derive"] }
 deep_thinker_api = { path = "../../deep_thinker_api" }
+zenoh_client = { path = "../../zenoh_client" }
 crossbeam-channel = { workspace = true }
 environments = { path = "../../environments" }

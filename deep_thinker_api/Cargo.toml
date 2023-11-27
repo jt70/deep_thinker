@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 crossbeam-channel = { workspace = true }
+serde = { version = "1.0.193", features = ["derive"] }
