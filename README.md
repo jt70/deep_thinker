@@ -2,8 +2,8 @@
 
 Deep Thinker is a high-performance toolkit for Reinforcement Learning 🚀
 
-* Tired of running your Reinforcement Learning algorithms on one thread? Deep Thinker can utilize your machine's total processing power and scale to many machines.
-* Is your RL environment written in something other than Python? If so, then Deep Thinker is for you. Easily connect to Deep Thinker using any language or protocol.
+* Easily develop clustered Reinforcement learning algorithms.
+* Connect to Deep Thinker using any language or protocol.
 
 Some example configurations:
 
