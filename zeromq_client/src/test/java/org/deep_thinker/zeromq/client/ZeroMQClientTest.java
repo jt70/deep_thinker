@@ -14,6 +14,5 @@ public class ZeroMQClientTest {
         ZeroMQClient zeroMQClient = new ZeroMQClient();
         String upper = zeroMQClient.toUpperCase("hello").get(5, TimeUnit.SECONDS);
         assertEquals("HELLO", upper);
-        Thread.sleep(1000);
     }
 }

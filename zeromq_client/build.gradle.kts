@@ -12,6 +12,7 @@ repositories {
 dependencies {
     implementation(project(":model"))
     implementation("org.zeromq:jeromq:0.5.4")
+    implementation("org.msgpack:msgpack-core:0.9.8")
     testImplementation(platform("org.junit:junit-bom:5.9.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 }
