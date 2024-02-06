@@ -12,6 +12,7 @@ repositories {
 val vertxVersion = "4.5.1"
 
 dependencies {
+    implementation(project(":zeromq_client"))
     implementation(project(":model"))
     implementation(project(":agent"))
     implementation(project(":cartpole_environment"))

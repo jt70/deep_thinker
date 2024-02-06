@@ -1,11 +1,19 @@
 package org.deep_thinker.cartpole_dqn;
 
-import org.deep_thinker.agent.dqn.DQNConfig;
+import org.deep_thinker.model.DQNConfig;
 import org.deep_thinker.env.cartpole.Cartpole;
+import org.deep_thinker.model.DeepThinkerClient;
 import org.deep_thinker.model.Step;
+import org.example.org.deep_thinker.zeromq.client.DeepThinkerZeroMQClient;
+
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class CartpoleDqnZeroMQMain {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws ExecutionException, InterruptedException, TimeoutException {
+        DeepThinkerClient client = new DeepThinkerZeroMQClient("tcp://localhost:5556");
+
         var config = new DQNConfig(
                 1.0f,
                 0.05f,
@@ -24,33 +32,33 @@ public class CartpoleDqnZeroMQMain {
                 10_000
         );
 
-        var totalEpisodes = 5000;
+        Integer totalEpisodes = 5000;
+        String agentId = "cartpole_dqn";
+        client.createDQNAgent(agentId, config).get(5, TimeUnit.SECONDS);
+
+        String envId = "my_env";
 
         Cartpole cartpole = new Cartpole();
         for (int i = 0; i < totalEpisodes; i++) {
             float episodeReward = 0.0f;
             float[] state = cartpole.reset();
-
-            // get first action
-            int action = 0;
+            Integer action = client.getFirstAction(agentId, envId, state).get();
+            Step step;
 
             do {
-                Step step = cartpole.step(action);
+                step = cartpole.step(action);
                 episodeReward += step.getReward();
 
-                if (step.getDone()) {
-                    // send episode complete
-
-                    //bus.send(episodeCompleteTopic, EpisodeComplete(envId, step.state, step.reward, episodeReward))
-                    break;
-                } else {
-                    action = 0;
-                    // get action
-                    //bus.send(getActionTopic, GetAction(envId, step.state, step.reward))
+                if (!step.getDone()) {
+                    action = client.getAction(agentId, envId, step.getState(), step.getReward()).get();
                 }
-            } while (true);
+            } while (!step.getDone());
 
-            System.out.println("Episode " + i);
+            client.episodeComplete(agentId, envId, step.getState(), step.getReward(), episodeReward).get();
+
+            if (i % 100 == 0) {
+                System.out.println("Episode " + i + " reward: " + episodeReward);
+            }
         }
     }
 }

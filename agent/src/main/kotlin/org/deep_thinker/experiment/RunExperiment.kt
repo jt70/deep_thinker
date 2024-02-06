@@ -14,7 +14,7 @@ import io.vertx.core.CompositeFuture
 import io.vertx.core.Future
 import io.vertx.core.Vertx
 import io.vertx.core.eventbus.EventBus
-import org.deep_thinker.agent.dqn.DQNConfig
+import org.deep_thinker.model.DQNConfig
 import org.deep_thinker.agent.dqn.DeepQLearningDJL
 import org.deep_thinker.agent.dqn.DeepQLearningVerticle
 import org.deep_thinker.model.*

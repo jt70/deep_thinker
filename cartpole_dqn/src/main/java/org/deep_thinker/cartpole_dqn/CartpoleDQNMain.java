@@ -1,6 +1,6 @@
 package org.deep_thinker.cartpole_dqn;
 
-import org.deep_thinker.agent.dqn.DQNConfig;
+import org.deep_thinker.model.DQNConfig;
 import org.deep_thinker.env.cartpole.Cartpole;
 
 import static org.deep_thinker.experiment.RunExperimentKt.runDQNExperiment;

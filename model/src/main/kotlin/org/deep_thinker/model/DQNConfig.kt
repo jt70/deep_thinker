@@ -1,4 +1,4 @@
-package org.deep_thinker.agent.dqn
+package org.deep_thinker.model
 
 data class DQNConfig(
     val startEpsilon: Float,
