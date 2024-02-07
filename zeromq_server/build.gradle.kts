@@ -13,6 +13,7 @@ repositories {
 
 dependencies {
     implementation(project(":agent"))
+    implementation(project(":model"))
     implementation(platform("io.vertx:vertx-stack-depchain:$vertxVersion"))
     implementation("io.vertx:vertx-lang-kotlin")
     testImplementation("io.vertx:vertx-junit5")
