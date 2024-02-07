@@ -2,6 +2,7 @@ package org.deep_thinker.zeromq.client;
 
 import org.deep_thinker.model.DQNConfig;
 import org.deep_thinker.model.DeepThinkerClient;
+import org.deep_thinker.serde.DQNConfigSerde;
 import org.jetbrains.annotations.NotNull;
 import org.msgpack.core.MessageBufferPacker;
 import org.msgpack.core.MessagePack;
@@ -23,6 +24,7 @@ public class ZeroMQClient implements DeepThinkerClient {
     ZContext context;
     String responseTopic;
     Map<String, Consumer<MessageUnpacker>> responseHandlers;
+    DQNConfigSerde dqnConfigSerde = new DQNConfigSerde();
 
     public ZeroMQClient() {
         responseTopic = UUID.randomUUID().toString();
@@ -61,9 +63,7 @@ public class ZeroMQClient implements DeepThinkerClient {
         }
     }
 
-    @NotNull
-    @Override
-    public CompletableFuture<String> toUpperCase(@NotNull String s) {
+    public CompletableFuture<String> toUpperCase(String s) {
         String responseId = UUID.randomUUID().toString();
         MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
         try {
@@ -95,27 +95,52 @@ public class ZeroMQClient implements DeepThinkerClient {
         return future;
     }
 
-    @NotNull
     @Override
-    public CompletableFuture<String> createDQNAgent(@NotNull String agentId, @NotNull DQNConfig config) {
-        return CompletableFuture.completedFuture("x");
+    public CompletableFuture<String> createDQNAgent(String agentId, DQNConfig config) {
+        String responseId = UUID.randomUUID().toString();
+        MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+        try {
+            packer
+                    .packString(responseTopic)
+                    .packString(responseId)
+                    .packString(agentId);
+            dqnConfigSerde.serialize(packer, config);
+            packer.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        CompletableFuture<String> future = new CompletableFuture<>();
+
+        Consumer<MessageUnpacker> consumer = (MessageUnpacker unpacker) -> {
+            try {
+                String response = unpacker.unpackString();
+                future.complete(response);
+            } catch (IOException e) {
+                future.completeExceptionally(e);
+            }
+        };
+        responseHandlers.put(responseId, consumer);
+
+        publisher.send("createDQNAgent", ZMQ.SNDMORE);
+        publisher.send(packer.toByteArray());
+
+
+        return future;
     }
 
-    @NotNull
     @Override
-    public CompletableFuture<Integer> getFirstAction(@NotNull String agentId, @NotNull String envId, @NotNull float[] state) {
+    public CompletableFuture<Integer> getFirstAction(String agentId, String envId, float[] state) {
         return CompletableFuture.completedFuture(0);
     }
 
-    @NotNull
     @Override
-    public CompletableFuture<Integer> getAction(@NotNull String agentId, @NotNull String envId, @NotNull float[] state, float reward) {
+    public CompletableFuture<Integer> getAction(String agentId, String envId, float[] state, float reward) {
         return CompletableFuture.completedFuture(0);
     }
 
-    @NotNull
     @Override
-    public CompletableFuture<Void> episodeComplete(@NotNull String agentId, @NotNull String envId, @NotNull float[] state, float reward, float episodeReward) {
+    public CompletableFuture<Void> episodeComplete(String agentId, String envId, float[] state, float reward, float episodeReward) {
         return CompletableFuture.completedFuture(null);
     }
 }

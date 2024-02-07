@@ -4,7 +4,7 @@ import org.deep_thinker.model.DQNConfig;
 import org.deep_thinker.env.cartpole.Cartpole;
 import org.deep_thinker.model.DeepThinkerClient;
 import org.deep_thinker.model.Step;
-import org.example.org.deep_thinker.zeromq.client.DeepThinkerZeroMQClient;
+import org.deep_thinker.zeromq.client.ZeroMQClient;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -12,7 +12,7 @@ import java.util.concurrent.TimeoutException;
 
 public class CartpoleDqnZeroMQMain {
     public static void main(String[] args) throws ExecutionException, InterruptedException, TimeoutException {
-        DeepThinkerClient client = new DeepThinkerZeroMQClient("tcp://localhost:5556");
+        DeepThinkerClient client = new ZeroMQClient();
 
         var config = new DQNConfig(
                 1.0f,

@@ -31,6 +31,7 @@ dependencies {
     implementation("ai.djl:model-zoo")
     implementation("ai.djl.pytorch:pytorch-engine")
     implementation("ai.djl.pytorch:pytorch-model-zoo")
+    implementation("org.msgpack:msgpack-core:0.9.8")
 }
 
 tasks.test {

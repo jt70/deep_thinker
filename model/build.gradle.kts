@@ -10,6 +10,7 @@ repositories {
 }
 
 dependencies {
+    implementation("org.msgpack:msgpack-core:0.9.8")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
 }
 
