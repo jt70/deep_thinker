@@ -8,6 +8,7 @@ public class DQNConfigSerde implements MessagePackSerde<DQNConfig> {
     @Override
     public void serialize(MessageBufferPacker packer, DQNConfig value) {
         try {
+            packer.packString(value.agentId);
             packer.packFloat(value.startEpsilon);
             packer.packFloat(value.endEpsilon);
             packer.packFloat(value.explorationFraction);
@@ -31,6 +32,7 @@ public class DQNConfigSerde implements MessagePackSerde<DQNConfig> {
     @Override
     public DQNConfig deserialize(MessageUnpacker unpacker) {
         try {
+            String agentId = unpacker.unpackString();
             float startEpsilon = unpacker.unpackFloat();
             float endEpsilon = unpacker.unpackFloat();
             float explorationFraction = unpacker.unpackFloat();
@@ -46,7 +48,7 @@ public class DQNConfigSerde implements MessagePackSerde<DQNConfig> {
             int hidden2Size = unpacker.unpackInt();
             int totalTimesteps = unpacker.unpackInt();
             int replayBufferSize = unpacker.unpackInt();
-            DQNConfig config = new DQNConfig(startEpsilon, endEpsilon, explorationFraction, learningStarts, trainFrequency, batchSize, learningRate, targetNetworkFrequency, gamma, numInputs, numActions, hidden1Size, hidden2Size, totalTimesteps, replayBufferSize);
+            DQNConfig config = new DQNConfig(agentId, startEpsilon, endEpsilon, explorationFraction, learningStarts, trainFrequency, batchSize, learningRate, targetNetworkFrequency, gamma, numInputs, numActions, hidden1Size, hidden2Size, totalTimesteps, replayBufferSize);
             return config;
         } catch (Exception e) {
             throw new RuntimeException(e);

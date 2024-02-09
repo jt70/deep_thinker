@@ -1,18 +1,35 @@
 package org.deep_thinker.cartpole_dqn;
 
-import org.deep_thinker.model.DQNConfig;
+import io.vertx.core.Vertx;
 import org.deep_thinker.env.cartpole.Cartpole;
+import org.deep_thinker.model.DQNConfig;
 import org.deep_thinker.model.DeepThinkerClient;
 import org.deep_thinker.model.Step;
+import org.deep_thinker.verticles.DQNAgentFactoryVerticle;
 import org.deep_thinker.zeromq.client.ZeroMQClient;
+import org.example.org.deep_thinker.zeromq.server.DeepThinkerZeroMQServer;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-public class CartpoleDqnZeroMQMain {
-    public static void main(String[] args) throws ExecutionException, InterruptedException, TimeoutException {
+public class CartpoleDQNTest {
+
+    @BeforeAll
+    public static void setUp() {
+        Vertx vertx = Vertx.vertx();
+        vertx.deployVerticle(new DQNAgentFactoryVerticle());
+
+        var server = new DeepThinkerZeroMQServer(vertx);
+        server.start();
+    }
+
+    @Test
+    public void testCartpoleDQN() throws ExecutionException, InterruptedException, TimeoutException {
         DeepThinkerClient client = new ZeroMQClient();
+
         String agentId = "cartpole_dqn";
         var config = new DQNConfig(
                 agentId,
@@ -33,11 +50,14 @@ public class CartpoleDqnZeroMQMain {
                 10_000
         );
 
-        Integer totalEpisodes = 5000;
-        client.createDQNAgent(config).get(5, TimeUnit.SECONDS);
+        Integer totalEpisodes = 50000;
+        client.createDQNAgent(config).get(50, TimeUnit.SECONDS);
+        Thread.sleep(500);
 
         String envId = "my_env";
 
+        float totalReward = 0.0f;
+        long start = System.currentTimeMillis();
         Cartpole cartpole = new Cartpole();
         for (int i = 0; i < totalEpisodes; i++) {
             float episodeReward = 0.0f;
@@ -53,12 +73,15 @@ public class CartpoleDqnZeroMQMain {
                     action = client.getAction(agentId, envId, step.getState(), step.getReward()).get();
                 }
             } while (!step.getDone());
-
+            totalReward += episodeReward;
             client.episodeComplete(agentId, envId, step.getState(), step.getReward(), episodeReward).get();
 
             if (i % 100 == 0) {
                 System.out.println("Episode " + i + " reward: " + episodeReward);
             }
         }
+        long end = System.currentTimeMillis();
+        System.out.println("Total reward: " + totalReward);
+        System.out.println("Total time: " + (end - start) + " ms");
     }
 }

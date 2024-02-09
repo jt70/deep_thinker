@@ -25,13 +25,13 @@ public class ZeroMQClientTest {
         MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
         packer.packInt(1000);
 
-        byte[] ba1 = new byte[] {1, 2};
+        byte[] ba1 = new byte[]{1, 2};
         packer.packBinaryHeader(ba1.length);
         packer.writePayload(ba1);
 
         packer.packInt(2000);
 
-        byte[] ba2 = new byte[] {3, 4, 5};
+        byte[] ba2 = new byte[]{3, 4, 5};
         packer.packBinaryHeader(ba2.length);
         packer.writePayload(ba2);
 
@@ -56,4 +56,23 @@ public class ZeroMQClientTest {
         assertEquals(4, ba2Unpacked[1]);
         assertEquals(5, ba2Unpacked[2]);
     }
+
+//    @Test
+//    public void testMessagePackPerformance() throws IOException {
+//        long start = System.currentTimeMillis();
+//        for (int i = 0; i < 10000000; i++) {
+//            MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+//            packer.packInt(1000);
+//            packer.packString("hello world");
+//            packer.packFloat(10.0f);
+//            byte[] b = packer.toByteArray();
+//
+////            MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(b);
+////            unpacker.unpackInt();
+////            unpacker.unpackString();
+////            unpacker.unpackFloat();
+//        }
+//        long end = System.currentTimeMillis();
+//        System.out.println("MessagePack performance: " + (end - start) + "ms");
+//    }
 }

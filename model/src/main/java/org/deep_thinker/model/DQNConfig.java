@@ -1,6 +1,7 @@
 package org.deep_thinker.model;
 
 public class DQNConfig {
+    public String agentId;
     public float startEpsilon;
     public float endEpsilon;
     public float explorationFraction;
@@ -17,7 +18,8 @@ public class DQNConfig {
     public int totalTimesteps;
     public int replayBufferSize;
 
-    public DQNConfig(float startEpsilon,
+    public DQNConfig(String agentId,
+                     float startEpsilon,
                      float endEpsilon,
                      float explorationFraction,
                      int learningStarts,
@@ -32,6 +34,7 @@ public class DQNConfig {
                      int hidden2Size,
                      int totalTimesteps,
                      int replayBufferSize) {
+        this.agentId = agentId;
         this.startEpsilon = startEpsilon;
         this.endEpsilon = endEpsilon;
         this.explorationFraction = explorationFraction;

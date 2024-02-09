@@ -1,7 +1,6 @@
 package org.example.org.deep_thinker.zeromq.server
 
 import io.vertx.core.Vertx
-import io.vertx.core.eventbus.EventBus
 import org.deep_thinker.model.MessageTypes
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
@@ -11,15 +10,15 @@ import org.zeromq.ZMQ
 import java.io.IOException
 
 
-class DeepThinkerZeroMQServer {
-    lateinit var eventBus: EventBus
+class DeepThinkerZeroMQServer(vertx: Vertx) {
+    var eventBus = vertx.eventBus()
     lateinit var publisher: ZMQ.Socket
     lateinit var responseMessageTypeBytes: ByteArray
 
     fun start() {
         val packer = MessagePack.newDefaultBufferPacker()
         try {
-            packer.packInt(MessageTypes.REQUEST)
+            packer.packInt(MessageTypes.RESPONSE)
             packer.close()
         } catch (e: IOException) {
             throw java.lang.RuntimeException(e)
@@ -27,8 +26,6 @@ class DeepThinkerZeroMQServer {
         responseMessageTypeBytes = packer.toByteArray()
 
         val context = ZContext()
-        val vertx = Vertx.vertx()
-        eventBus = vertx.eventBus()
 
         val subscriber = context.createSocket(SocketType.SUB)
         subscriber.bind("tcp://*:5556")
@@ -48,17 +45,21 @@ class DeepThinkerZeroMQServer {
             message.reply(response.toByteArray())
         }
 
-        println("Start receiving message")
-        while (true) {
-            val topic = subscriber.recvStr()
-            val messageType = getMessageType(subscriber.recv())
+        Thread {
+            println("Start receiving message")
+            while (true) {
+                val topic = subscriber.recvStr()
+                val messageType = getMessageType(subscriber.recv())
 
-            if (messageType == MessageTypes.REQUEST) {
-                val requestMetaData: ByteArray = subscriber.recv()
-                val requestContent: ByteArray = subscriber.recv()
-                handleRequestResponse(topic, requestMetaData, requestContent)
+                if (messageType == MessageTypes.REQUEST) {
+                    val requestMetaData: ByteArray = subscriber.recv()
+                    val requestContent: ByteArray = subscriber.recv()
+                    handleRequestResponse(topic, requestMetaData, requestContent)
+                }
             }
-        }
+        }.start()
+        // TODO: fix this
+        Thread.sleep(200)
     }
 
     private fun handleRequestResponse(topic: String, requestMetaData: ByteArray, requestContent: ByteArray) {
