@@ -1,20 +1,23 @@
 package org.example.org.deep_thinker.zeromq.server
 
+import com.google.flatbuffers.FlatBufferBuilder
 import io.vertx.core.Vertx
 import org.deep_thinker.model.MessageTypes
 import org.deep_thinker.model.RequestMetadata
-import org.deep_thinker.serde.StringFlatSerde
+import org.deep_thinker.model.ResponseMetadata
 import org.deep_thinker.serde.IntFlatSerde
 import org.deep_thinker.serde.RequestMetadataSerde
+import org.deep_thinker.serde.ResponseMetadataSerde
+import org.deep_thinker.serde.StringFlatSerde
 import org.zeromq.SocketType
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
-import java.io.IOException
 
 
 class DeepThinkerZeroMQServer(vertx: Vertx) {
     val intFlatSerde = IntFlatSerde()
     val requestMetadataSerde = RequestMetadataSerde()
+    val responseMetadataSerde = ResponseMetadataSerde()
     val responseMessageTypeBytes: ByteArray = intFlatSerde.serialize(MessageTypes.RESPONSE)
     var eventBus = vertx.eventBus()
     lateinit var publisher: ZMQ.Socket
@@ -62,14 +65,17 @@ class DeepThinkerZeroMQServer(vertx: Vertx) {
 
         eventBus.request<ByteArray>(topic, requestContent) { message ->
             // TODO: make threadsafe
-//            val responseMetadata = MessagePack.newDefaultBufferPacker()
-//            responseMetadata.packString(responseId)
-//            responseMetadata.close()
-//
-//            publisher.send(responseTopic, ZMQ.SNDMORE)
-//            publisher.send(responseMessageTypeBytes, ZMQ.SNDMORE)
-//            publisher.send(responseMetadata.toByteArray(), ZMQ.SNDMORE)
-//            publisher.send(message.result().body())
+
+            val builder = FlatBufferBuilder(20)
+            val responseIdOffset = builder.createString(responseId)
+            val offset = ResponseMetadata.createResponseMetadata(builder, responseIdOffset)
+            builder.finish(offset)
+            val responseMetadata = builder.sizedByteArray()
+
+            publisher.send(responseTopic, ZMQ.SNDMORE)
+            publisher.send(responseMessageTypeBytes, ZMQ.SNDMORE)
+            publisher.send(responseMetadata, ZMQ.SNDMORE)
+            publisher.send(message.result().body())
         }
     }
 

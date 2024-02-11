@@ -57,3 +57,7 @@ table RequestMetadata {
     response_topic:string;
     response_id:string;
 }
+
+table ResponseMetadata {
+    response_id:string;
+}
