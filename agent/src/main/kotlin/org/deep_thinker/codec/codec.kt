@@ -179,25 +179,3 @@ class FirstActionPerformedCodec() : io.vertx.core.eventbus.MessageCodec<FirstAct
         return a
     }
 }
-
-class UpdatePredictorCodec() : io.vertx.core.eventbus.MessageCodec<UpdatePredictor, UpdatePredictor> {
-    override fun encodeToWire(p0: Buffer?, p1: UpdatePredictor) {
-        TODO("Not yet implemented")
-    }
-
-    override fun decodeFromWire(p0: Int, p1: Buffer?): UpdatePredictor {
-        TODO("Not yet implemented")
-    }
-
-    override fun name(): String {
-        return "UpdatePredictorCodec"
-    }
-
-    override fun systemCodecID(): Byte {
-        return -1
-    }
-
-    override fun transform(a: UpdatePredictor): UpdatePredictor {
-        return a
-    }
-}

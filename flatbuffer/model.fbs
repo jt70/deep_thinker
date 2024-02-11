@@ -1,0 +1,59 @@
+namespace org.deep_thinker.model;
+
+table GetFirstActionFlat {
+    env_id:string;
+    state:[float];
+}
+
+table GetFirstActionResponse {
+    action:int;
+}
+
+table GetActionFlat {
+    env_id:string;
+    reward:float;
+    state:[float];
+}
+
+table GetActionResponse {
+    action:int;
+}
+
+table EpisodeCompleteFlat {
+    env_id:string;
+    state:[float];
+    reward:float;
+    episode_reward:float;
+}
+
+table DQNConfigFlat {
+    agent_id:string;
+    start_epsilon:float;
+    end_epsilon:float;
+    exploration_fraction:float;
+    learning_starts:int;
+    train_frequency:int;
+    batch_size:int;
+    learning_rate:float;
+    target_network_frequency:int;
+    gamma:float;
+    num_inputs:int;
+    num_actions:int;
+    hidden1_size:int;
+    hidden2_size:int;
+    total_timesteps:int;
+    replay_buffer_size:int;
+}
+
+table StringFlat {
+    value:string;
+}
+
+table IntFlat {
+    value:int;
+}
+
+table RequestMetadata {
+    response_topic:string;
+    response_id:string;
+}

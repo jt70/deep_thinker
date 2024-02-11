@@ -26,6 +26,7 @@ public class CartpoleDQNTest {
         server.start();
     }
 
+    // Message Pack Total time: 46932 ms
     @Test
     public void testCartpoleDQN() throws ExecutionException, InterruptedException, TimeoutException {
         DeepThinkerClient client = new ZeroMQClient();
@@ -50,7 +51,8 @@ public class CartpoleDQNTest {
                 10_000
         );
 
-        Integer totalEpisodes = 50000;
+        //Integer totalEpisodes = 5000;
+        Integer totalEpisodes = 20000;
         client.createDQNAgent(config).get(50, TimeUnit.SECONDS);
         Thread.sleep(500);
 

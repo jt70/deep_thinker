@@ -4,6 +4,7 @@ import io.vertx.core.AbstractVerticle
 import io.vertx.core.Promise
 import io.vertx.core.eventbus.Message
 import org.deep_thinker.agent.dqn.DeepQLearningAgentVerticle
+import org.deep_thinker.agent.dqn.DeepQLearningDJL2
 import org.deep_thinker.serde.DQNConfigSerde
 import org.msgpack.core.MessagePack
 
@@ -24,6 +25,7 @@ class DQNAgentFactoryVerticle : AbstractVerticle() {
         val config = dqnConfigSerde.deserialize(unpacker)
         vertx.deployVerticle(DeepQLearningAgentVerticle(config))
         println("DQN agentCreated")
+
         message.reply(ByteArray(0))
     }
 }

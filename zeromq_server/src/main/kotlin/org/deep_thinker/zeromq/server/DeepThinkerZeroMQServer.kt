@@ -2,8 +2,10 @@ package org.example.org.deep_thinker.zeromq.server
 
 import io.vertx.core.Vertx
 import org.deep_thinker.model.MessageTypes
-import org.msgpack.core.MessagePack
-import org.msgpack.core.MessageUnpacker
+import org.deep_thinker.model.RequestMetadata
+import org.deep_thinker.serde.StringFlatSerde
+import org.deep_thinker.serde.IntFlatSerde
+import org.deep_thinker.serde.RequestMetadataSerde
 import org.zeromq.SocketType
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
@@ -11,20 +13,13 @@ import java.io.IOException
 
 
 class DeepThinkerZeroMQServer(vertx: Vertx) {
+    val intFlatSerde = IntFlatSerde()
+    val requestMetadataSerde = RequestMetadataSerde()
+    val responseMessageTypeBytes: ByteArray = intFlatSerde.serialize(MessageTypes.RESPONSE)
     var eventBus = vertx.eventBus()
     lateinit var publisher: ZMQ.Socket
-    lateinit var responseMessageTypeBytes: ByteArray
 
     fun start() {
-        val packer = MessagePack.newDefaultBufferPacker()
-        try {
-            packer.packInt(MessageTypes.RESPONSE)
-            packer.close()
-        } catch (e: IOException) {
-            throw java.lang.RuntimeException(e)
-        }
-        responseMessageTypeBytes = packer.toByteArray()
-
         val context = ZContext()
 
         val subscriber = context.createSocket(SocketType.SUB)
@@ -34,15 +29,11 @@ class DeepThinkerZeroMQServer(vertx: Vertx) {
         publisher = context.createSocket(SocketType.PUB)
         publisher.bind("tcp://*:5557")
 
-        eventBus.consumer<ByteArray>("toUpperCase") { message ->
-            val unpacker: MessageUnpacker = MessagePack.newDefaultUnpacker(message.body())
-            val input = unpacker.unpackString()
-
-            val response = MessagePack.newDefaultBufferPacker()
-            response.packString(input.uppercase())
-            response.close()
-
-            message.reply(response.toByteArray())
+        val stringSerde = StringFlatSerde()
+        eventBus.consumer("toUpperCase") { message ->
+            val input = stringSerde.deserialize(message.body())
+            val response = stringSerde.serialize(input.uppercase())
+            message.reply(response)
         }
 
         Thread {
@@ -55,6 +46,8 @@ class DeepThinkerZeroMQServer(vertx: Vertx) {
                     val requestMetaData: ByteArray = subscriber.recv()
                     val requestContent: ByteArray = subscriber.recv()
                     handleRequestResponse(topic, requestMetaData, requestContent)
+                } else {
+                    throw RuntimeException("Unknown message type!")
                 }
             }
         }.start()
@@ -62,30 +55,25 @@ class DeepThinkerZeroMQServer(vertx: Vertx) {
         Thread.sleep(200)
     }
 
-    private fun handleRequestResponse(topic: String, requestMetaData: ByteArray, requestContent: ByteArray) {
-        val unpacker: MessageUnpacker = MessagePack.newDefaultUnpacker(requestMetaData)
-        val responseTopic = unpacker.unpackString()
-        val responseId = unpacker.unpackString()
+    private fun handleRequestResponse(topic: String, requestMetaDataBytes: ByteArray, requestContent: ByteArray) {
+        val requestMetaData = requestMetadataSerde.deserialize(requestMetaDataBytes)
+        val responseTopic = requestMetaData.responseTopic()
+        val responseId = requestMetaData.responseId()
 
         eventBus.request<ByteArray>(topic, requestContent) { message ->
             // TODO: make threadsafe
-            val responseMetadata = MessagePack.newDefaultBufferPacker()
-            responseMetadata.packString(responseId)
-            responseMetadata.close()
-
-            publisher.send(responseTopic, ZMQ.SNDMORE)
-            publisher.send(responseMessageTypeBytes, ZMQ.SNDMORE)
-            publisher.send(responseMetadata.toByteArray(), ZMQ.SNDMORE)
-            publisher.send(message.result().body())
+//            val responseMetadata = MessagePack.newDefaultBufferPacker()
+//            responseMetadata.packString(responseId)
+//            responseMetadata.close()
+//
+//            publisher.send(responseTopic, ZMQ.SNDMORE)
+//            publisher.send(responseMessageTypeBytes, ZMQ.SNDMORE)
+//            publisher.send(responseMetadata.toByteArray(), ZMQ.SNDMORE)
+//            publisher.send(message.result().body())
         }
     }
 
     private fun getMessageType(data: ByteArray): Int {
-        val unpacker = MessagePack.newDefaultUnpacker(data)
-        try {
-            return unpacker.unpackInt()
-        } catch (e: IOException) {
-            throw RuntimeException(e)
-        }
+        return intFlatSerde.deserialize(data)
     }
 }

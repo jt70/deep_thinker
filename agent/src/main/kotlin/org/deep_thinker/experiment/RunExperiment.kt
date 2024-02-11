@@ -105,7 +105,6 @@ private fun registerCodecs(eventBus: EventBus) {
     eventBus.registerDefaultCodec(SaveModel::class.java, SaveModelCodec())
     eventBus.registerDefaultCodec(ActionPerformed::class.java, ActionPerformedCodec())
     eventBus.registerDefaultCodec(FirstActionPerformed::class.java, FirstActionPerformedCodec())
-    eventBus.registerDefaultCodec(UpdatePredictor::class.java, UpdatePredictorCodec())
 }
 
 fun getAction(manager: NDManager, predictor: Predictor<NDList, NDList>, floatArrayOf: FloatArray): Int {

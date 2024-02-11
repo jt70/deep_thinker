@@ -8,10 +8,6 @@ data class GetAction(val envId: String, val state: FloatArray, val reward: Float
   constructor() : this("", floatArrayOf(), 0.0f)
 }
 
-data class UpdatePredictor(val paramBytes: ByteArray) {
-  constructor() : this(byteArrayOf())
-}
-
 data class GetFirstAction(val envId: String, val state: FloatArray) {
   constructor() : this("", floatArrayOf())
 }
