@@ -19,7 +19,6 @@ dependencies {
     testImplementation("io.vertx:vertx-junit5")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     implementation("org.zeromq:jeromq:0.5.4")
-    implementation("org.msgpack:msgpack-core:0.9.8")
     implementation("com.google.flatbuffers:flatbuffers-java:23.5.26")
 }
 

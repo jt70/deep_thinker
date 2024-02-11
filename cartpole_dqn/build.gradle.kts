@@ -19,6 +19,7 @@ dependencies {
     implementation(project(":cartpole_environment"))
     implementation(platform("io.vertx:vertx-stack-depchain:$vertxVersion"))
     implementation("io.vertx:vertx-core")
+    implementation("com.google.flatbuffers:flatbuffers-java:23.5.26")
     testImplementation(platform("org.junit:junit-bom:5.9.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 }

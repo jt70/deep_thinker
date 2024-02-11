@@ -1,16 +1,17 @@
 package org.deep_thinker.cartpole_dqn;
 
+import com.google.flatbuffers.FlatBufferBuilder;
 import io.vertx.core.Vertx;
 import org.deep_thinker.env.cartpole.Cartpole;
-import org.deep_thinker.model.DQNConfig;
-import org.deep_thinker.model.DeepThinkerClient;
-import org.deep_thinker.model.Step;
+import org.deep_thinker.model.*;
 import org.deep_thinker.verticles.DQNAgentFactoryVerticle;
 import org.deep_thinker.zeromq.client.ZeroMQClient;
+import org.deep_thinker.zeromq.client.ZeroMQFlatBufferClient;
 import org.example.org.deep_thinker.zeromq.server.DeepThinkerZeroMQServer;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -27,13 +28,18 @@ public class CartpoleDQNTest {
     }
 
     // Message Pack Total time: 46932 ms
+    // Flat buffer Total time: 32182 ms
     @Test
     public void testCartpoleDQN() throws ExecutionException, InterruptedException, TimeoutException {
-        DeepThinkerClient client = new ZeroMQClient();
+        DeepThinkerClient client = new ZeroMQFlatBufferClient();
 
         String agentId = "cartpole_dqn";
-        var config = new DQNConfig(
-                agentId,
+
+        FlatBufferBuilder builder = new FlatBufferBuilder(20);
+        int agentIdOffset = builder.createString(agentId);
+        int offset = DQNConfigFlat.createDQNConfigFlat(
+                builder,
+                agentIdOffset,
                 1.0f,
                 0.05f,
                 0.5f,
@@ -50,6 +56,9 @@ public class CartpoleDQNTest {
                 500_000,
                 10_000
         );
+        builder.finish(offset);
+        ByteBuffer buffer = ByteBuffer.wrap(builder.sizedByteArray());
+        var config = DQNConfigFlat.getRootAsDQNConfigFlat(buffer);
 
         //Integer totalEpisodes = 5000;
         Integer totalEpisodes = 20000;

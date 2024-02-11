@@ -20,6 +20,7 @@ val junitJupiterVersion = "5.9.1"
 
 dependencies {
     implementation(project(":model"))
+    implementation("com.google.flatbuffers:flatbuffers-java:23.5.26")
     implementation(platform("io.vertx:vertx-stack-depchain:$vertxVersion"))
     implementation("io.vertx:vertx-lang-kotlin")
     testImplementation("io.vertx:vertx-junit5")
@@ -31,7 +32,6 @@ dependencies {
     implementation("ai.djl:model-zoo")
     implementation("ai.djl.pytorch:pytorch-engine")
     implementation("ai.djl.pytorch:pytorch-model-zoo")
-    implementation("org.msgpack:msgpack-core:0.9.8")
 }
 
 tasks.test {

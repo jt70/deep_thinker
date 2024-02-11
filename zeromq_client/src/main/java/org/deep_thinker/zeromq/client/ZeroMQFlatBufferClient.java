@@ -1,19 +1,17 @@
 package org.deep_thinker.zeromq.client;
 
 import com.google.flatbuffers.FlatBufferBuilder;
-import org.deep_thinker.model.DQNConfig;
+import org.deep_thinker.model.DQNConfigFlat;
 import org.deep_thinker.model.DeepThinkerClient;
 import org.deep_thinker.model.RequestMetadata;
+import org.deep_thinker.serde.DQNConfigFlatSerde;
 import org.deep_thinker.serde.FlatSerde;
 import org.deep_thinker.serde.IntFlatSerde;
 import org.deep_thinker.serde.StringFlatSerde;
-import org.msgpack.core.MessagePack;
-import org.msgpack.core.MessageUnpacker;
 import org.zeromq.SocketType;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -31,6 +29,7 @@ public class ZeroMQFlatBufferClient implements DeepThinkerClient {
     Map<String, Consumer<byte[]>> responseHandlers;
     StringFlatSerde stringSerde = new StringFlatSerde();
     IntFlatSerde intSerde = new IntFlatSerde();
+    DQNConfigFlatSerde dqnConfigSerde = new DQNConfigFlatSerde();
     byte[] requestMessageTypeBytes;
 
     public ZeroMQFlatBufferClient() {
@@ -115,22 +114,22 @@ public class ZeroMQFlatBufferClient implements DeepThinkerClient {
     }
 
     @Override
-    public CompletableFuture<Void> createDQNAgent(DQNConfig config) {
-        return null;
+    public CompletableFuture<Integer> createDQNAgent(DQNConfigFlat config) {
+        return requestResponse("createDQNAgent", config, dqnConfigSerde, intSerde);
     }
 
     @Override
     public CompletableFuture<Integer> getFirstAction(String agentId, String envId, float[] state) {
-        return null;
+        return requestResponse("getFirstAction." + agentId, "yo", stringSerde, intSerde);
     }
 
     @Override
     public CompletableFuture<Integer> getAction(String agentId, String envId, float[] state, float reward) {
-        return null;
+        return requestResponse("getAction." + agentId, "yo", stringSerde, intSerde);
     }
 
     @Override
-    public CompletableFuture<Void> episodeComplete(String agentId, String envId, float[] state, float reward, float episodeReward) {
-        return null;
+    public CompletableFuture<Integer> episodeComplete(String agentId, String envId, float[] state, float reward, float episodeReward) {
+        return requestResponse("episodeComplete." + agentId, "yo", stringSerde, intSerde);
     }
 }
