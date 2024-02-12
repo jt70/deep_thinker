@@ -11,11 +11,12 @@ import ai.djl.ndarray.types.Shape
 import ai.djl.training.loss.L2Loss
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.translate.NoopTranslator
+import com.google.flatbuffers.FloatVector
 import org.deep_thinker.model.*
 import java.io.*
 import kotlin.random.Random
 
-class DeepQLearningDJL2(val config: DQNConfigFlat) : DeepQLearning {
+class DeepQLearningDJL2(val config: DQNConfigFlat) {
     private val previousObservation = HashMap<String, Pair<FloatArray, Int>>()
     private val replayBuffer = ReplayBuffer(config.replayBufferSize(), config.numInputs())
     val lossFunc = L2Loss()
@@ -44,9 +45,9 @@ class DeepQLearningDJL2(val config: DQNConfigFlat) : DeepQLearning {
     var targetPredictor = targetNetwork.newPredictor(NoopTranslator());
 
 
-    override fun getFirstAction(message: GetFirstAction): Int {
-        val envId = message.envId
-        val obs = message.state
+    fun getFirstAction(message: GetFirstActionFlat): Int {
+        val envId = message.envId()
+        val obs = getFloatArray(message.stateVector(), message.stateLength())
         val action = selectAction(globalStep, obs)
 
         previousObservation[envId] = Pair(obs, action)
@@ -57,19 +58,27 @@ class DeepQLearningDJL2(val config: DQNConfigFlat) : DeepQLearning {
         return action
     }
 
-    override fun saveModel(message: SaveModel) {
+    private fun getFloatArray(vector: FloatVector, length: Int): FloatArray {
+        val array = FloatArray(length)
+        for (i in 0 until length) {
+            array[i] = vector.get(i)
+        }
+        return array
+    }
+
+    fun saveModel(message: SaveModel) {
 //        val paramFile = File(message.path)
 //        val os = DataOutputStream(Files.newOutputStream(paramFile.toPath()))
 //        qNetwork.getBlock().saveParameters(os)
 //        os.close()
     }
 
-    override fun getAction(message: GetAction): Int {
-        val envId = message.envId
-        val state = message.state
+    fun getAction(message: GetActionFlat): Int {
+        val envId = message.envId()
+        val state = getFloatArray(message.stateVector(), message.stateLength())
 
         val (prevState, prevAction) = previousObservation[envId]!!
-        replayBuffer.add(prevState, prevAction, message.reward, false, state)
+        replayBuffer.add(prevState, prevAction, message.reward(), false, state)
 
         val action = selectAction(globalStep, state)
 
@@ -80,10 +89,11 @@ class DeepQLearningDJL2(val config: DQNConfigFlat) : DeepQLearning {
         return action
     }
 
-    override fun episodeComplete(episodeComplete: EpisodeComplete) {
-        var (prevObs, prevAction) = previousObservation[episodeComplete.envId]!!
-        replayBuffer.add(prevObs, prevAction, episodeComplete.reward, true, episodeComplete.state)
-        previousObservation.remove(episodeComplete.envId)
+    fun episodeComplete(episodeComplete: EpisodeCompleteFlat) {
+        var (prevObs, prevAction) = previousObservation[episodeComplete.envId()]!!
+        var state = getFloatArray(episodeComplete.stateVector(), episodeComplete.stateLength())
+        replayBuffer.add(prevObs, prevAction, episodeComplete.reward(), true, state)
+        previousObservation.remove(episodeComplete.envId())
 
         globalStep++
 
@@ -175,7 +185,7 @@ class DeepQLearningDJL2(val config: DQNConfigFlat) : DeepQLearning {
         targetPredictor = targetNetwork.newPredictor(NoopTranslator())
     }
 
-    override fun close() {
+    fun close() {
         mainManager.close()
     }
 }

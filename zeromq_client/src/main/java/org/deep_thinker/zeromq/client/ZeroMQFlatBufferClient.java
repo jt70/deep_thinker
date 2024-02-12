@@ -1,13 +1,8 @@
 package org.deep_thinker.zeromq.client;
 
 import com.google.flatbuffers.FlatBufferBuilder;
-import org.deep_thinker.model.DQNConfigFlat;
-import org.deep_thinker.model.DeepThinkerClient;
-import org.deep_thinker.model.RequestMetadata;
-import org.deep_thinker.serde.DQNConfigFlatSerde;
-import org.deep_thinker.serde.FlatSerde;
-import org.deep_thinker.serde.IntFlatSerde;
-import org.deep_thinker.serde.StringFlatSerde;
+import org.deep_thinker.model.*;
+import org.deep_thinker.serde.*;
 import org.zeromq.SocketType;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
@@ -30,6 +25,9 @@ public class ZeroMQFlatBufferClient implements DeepThinkerClient {
     StringFlatSerde stringSerde = new StringFlatSerde();
     IntFlatSerde intSerde = new IntFlatSerde();
     DQNConfigFlatSerde dqnConfigSerde = new DQNConfigFlatSerde();
+    GetFirstActionFlat getFirstActionSerde = new GetFirstActionFlat();
+    GetActionFlat getActionSerde = new GetActionFlat();
+    EpisodeCompleteFlatSerde episodeCompleteSerde = new EpisodeCompleteFlatSerde();
     byte[] requestMessageTypeBytes;
 
     public ZeroMQFlatBufferClient() {
@@ -83,10 +81,10 @@ public class ZeroMQFlatBufferClient implements DeepThinkerClient {
 
     @Override
     public CompletableFuture<String> toUpperCase(String s) {
-        return requestResponse("toUpperCase", s, stringSerde, stringSerde);
+        return requestResponse("toUpperCase", stringSerde.serialize(s), stringSerde);
     }
 
-    public <I, O> CompletableFuture<O> requestResponse(String topic, I value, FlatSerde<I> serializer, FlatSerde<O> deserializer) {
+    public <O> CompletableFuture<O> requestResponse(String topic, byte[] requestContent, FlatSerde<O> deserializer) {
         String responseId = UUID.randomUUID().toString();
 
         FlatBufferBuilder builder = new FlatBufferBuilder(20);
@@ -95,8 +93,6 @@ public class ZeroMQFlatBufferClient implements DeepThinkerClient {
         int offset = RequestMetadata.createRequestMetadata(builder, responseTopicOffset, responseIdOffset);
         builder.finish(offset);
         byte[] requestMetadata = builder.sizedByteArray();
-
-        byte[] requestContent = serializer.serialize(value);
 
         CompletableFuture<O> future = new CompletableFuture<>();
         Consumer<byte[]> consumer = (byte[] bytes) -> {
@@ -115,21 +111,42 @@ public class ZeroMQFlatBufferClient implements DeepThinkerClient {
 
     @Override
     public CompletableFuture<Integer> createDQNAgent(DQNConfigFlat config) {
-        return requestResponse("createDQNAgent", config, dqnConfigSerde, intSerde);
+        return requestResponse("createDQNAgent", dqnConfigSerde.serialize(config), intSerde);
     }
 
     @Override
     public CompletableFuture<Integer> getFirstAction(String agentId, String envId, float[] state) {
-        return requestResponse("getFirstAction." + agentId, "yo", stringSerde, intSerde);
+        FlatBufferBuilder builder = new FlatBufferBuilder(20);
+        int envIdOffset = builder.createString(envId);
+        int stateVectorOffset = GetFirstActionFlat.createStateVector(builder, state);
+        int offset = GetFirstActionFlat.createGetFirstActionFlat(builder, envIdOffset, stateVectorOffset);
+        builder.finish(offset);
+        byte[] bytes = builder.sizedByteArray();
+
+        return requestResponse("getFirstAction." + agentId, bytes, intSerde);
     }
 
     @Override
     public CompletableFuture<Integer> getAction(String agentId, String envId, float[] state, float reward) {
-        return requestResponse("getAction." + agentId, "yo", stringSerde, intSerde);
+        FlatBufferBuilder builder = new FlatBufferBuilder(20);
+        int envIdOffset = builder.createString(envId);
+        int stateVectorOffset = GetActionFlat.createStateVector(builder, state);
+        int offset = GetActionFlat.createGetActionFlat(builder, envIdOffset, reward, stateVectorOffset);
+        builder.finish(offset);
+        byte[] bytes = builder.sizedByteArray();
+
+        return requestResponse("getAction." + agentId, bytes, intSerde);
     }
 
     @Override
     public CompletableFuture<Integer> episodeComplete(String agentId, String envId, float[] state, float reward, float episodeReward) {
-        return requestResponse("episodeComplete." + agentId, "yo", stringSerde, intSerde);
+        FlatBufferBuilder builder = new FlatBufferBuilder(20);
+        int envIdOffset = builder.createString(envId);
+        int stateVectorOffset = EpisodeCompleteFlat.createStateVector(builder, state);
+        int offset = EpisodeCompleteFlat.createEpisodeCompleteFlat(builder, envIdOffset, stateVectorOffset, reward, episodeReward);
+        builder.finish(offset);
+        byte[] bytes = builder.sizedByteArray();
+
+        return requestResponse("episodeComplete." + agentId, bytes, intSerde);
     }
 }
