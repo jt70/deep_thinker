@@ -4,20 +4,20 @@ import io.vertx.core.AbstractVerticle
 import io.vertx.core.Promise
 import io.vertx.core.eventbus.EventBus
 import io.vertx.core.eventbus.Message
-import org.deep_thinker.model.*
+import org.deep_thinker.model.DQNConfigFlat
 import org.deep_thinker.serde.EpisodeCompleteFlatSerde
 import org.deep_thinker.serde.GetActionFlatSerde
 import org.deep_thinker.serde.GetFirstActionFlatSerde
 import org.deep_thinker.serde.IntFlatSerde
 
-class DeepQLearningAgentVerticle(val config: DQNConfigFlat) : AbstractVerticle() {
-    val intSerde = IntFlatSerde()
-    val getFirstActionSerde = GetFirstActionFlatSerde()
-    val getActionSerde = GetActionFlatSerde()
-    val episodeCompleteSerde = EpisodeCompleteFlatSerde()
-
+class DeepQLearningAgentVerticle(private val config: DQNConfigFlat) : AbstractVerticle() {
+    private val intSerde = IntFlatSerde()
+    private val getFirstActionSerde = GetFirstActionFlatSerde()
+    private val getActionSerde = GetActionFlatSerde()
+    private val episodeCompleteSerde = EpisodeCompleteFlatSerde()
     private lateinit var deepQLearning: DeepQLearningDJL2
     private lateinit var bus: EventBus
+
     override fun start(startPromise: Promise<Void>) {
         println("DeepQLearningAgentVerticle starting...")
         bus = vertx.eventBus()

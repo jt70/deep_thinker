@@ -1,13 +1,10 @@
 package org.deep_thinker.agent.dqn
 
-import ai.djl.Model
-import ai.djl.basicmodelzoo.basic.Mlp
 import ai.djl.engine.Engine
 import ai.djl.ndarray.NDArray
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
-import ai.djl.ndarray.types.DataType
-import ai.djl.ndarray.types.Shape
+import ai.djl.training.ParameterStore
 import ai.djl.training.loss.L2Loss
 import ai.djl.training.optimizer.Adam
 import ai.djl.training.optimizer.Optimizer
@@ -19,6 +16,7 @@ import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import kotlin.random.Random
+
 
 class DeepQLearningDJL2(config: DQNConfigFlat) {
     private val numActions: Int = config.numActions()
@@ -34,32 +32,40 @@ class DeepQLearningDJL2(config: DQNConfigFlat) {
     private val previousObservation: HashMap<String, Pair<FloatArray, Int>> = HashMap()
     private val replayBuffer: ReplayBuffer = ReplayBuffer(config.replayBufferSize(), config.numInputs())
     private val lossFunc: L2Loss = L2Loss()
-    private val optimizer: Adam = Optimizer.adam().optLearningRateTracker(ai.djl.training.tracker.Tracker.fixed(config.learningRate())).build()
+    private val optimizer: Adam =
+        Optimizer.adam().optLearningRateTracker(ai.djl.training.tracker.Tracker.fixed(config.learningRate())).build()
     private var globalStep: Int = 0
     private val mainManager: NDManager = NDManager.newBaseManager()
-    private val qNetworkManager: NDManager = mainManager.newSubManager()
-    private var targetNetworkManager: NDManager = mainManager.newSubManager()
-    private val qNetwork: Model = Model.newInstance("qNetwork")
-    private val targetNetwork: Model = Model.newInstance("targetNetwork")
+//    private val qNetworkManager: NDManager = mainManager.newSubManager()
+//    private var targetNetworkManager: NDManager = mainManager.newSubManager()
+    //private val qNetwork: Model = Model.newInstance("qNetwork")
+//    private val targetNetwork: Model = Model.newInstance("targetNetwork")
+
+    private val qNet = DeepQNetworkDJL(
+        mainManager,
+        "qNetwork",
+        config.numInputs(),
+        config.numActions(),
+        intArrayOf(config.hidden1Size(), config.hidden2Size())
+    )
+    private val targetNet = DeepQNetworkDJL(
+        mainManager,
+        "targetNetwork",
+        config.numInputs(),
+        config.numActions(),
+        intArrayOf(config.hidden1Size(), config.hidden2Size())
+    )
 
     init {
-        printCollector()
+//        val net = Mlp(config.numInputs(), config.numActions(), intArrayOf(config.hidden1Size(), config.hidden2Size()))
+//        net.initialize(qNetworkManager, DataType.FLOAT32, Shape(config.numInputs().toLong()))
+//        qNetwork.block = net
 
-        val net = Mlp(config.numInputs(), config.numActions(), intArrayOf(config.hidden1Size(), config.hidden2Size()))
-        net.initialize(qNetworkManager, DataType.FLOAT32, Shape(config.numInputs().toLong()))
-        qNetwork.block = net
-
-        printCollector()
-
-        val t = Mlp(config.numInputs(), config.numActions(), intArrayOf(config.hidden1Size(), config.hidden2Size()))
-        t.initialize(targetNetworkManager, DataType.FLOAT32, Shape(config.numInputs().toLong()))
-        targetNetwork.block = t
-
-        printCollector()
-
+//        val t = Mlp(config.numInputs(), config.numActions(), intArrayOf(config.hidden1Size(), config.hidden2Size()))
+//        t.initialize(targetNetworkManager, DataType.FLOAT32, Shape(config.numInputs().toLong()))
+//        targetNetwork.block = t
+//
         syncNets()
-
-        printCollector()
     }
 
     private fun printCollector() {
@@ -68,8 +74,8 @@ class DeepQLearningDJL2(config: DQNConfigFlat) {
 //        }
     }
 
-    var predictor = qNetwork.newPredictor(NoopTranslator());
-    var targetPredictor = targetNetwork.newPredictor(NoopTranslator());
+    //var predictor = qNetwork.newPredictor(NoopTranslator());
+//    var targetPredictor = targetNetwork.newPredictor(NoopTranslator());
 
 
     fun getFirstAction(message: GetFirstActionFlat): Int {
@@ -139,9 +145,8 @@ class DeepQLearningDJL2(config: DQNConfigFlat) {
             var nextStates = sample.nextStates
 
             mainManager.newSubManager().use { manager ->
-
                 val output: NDArray =
-                    targetPredictor.predict(NDList(manager.create(nextStates))).singletonOrThrow().duplicate()
+                    targetNet.predict(NDList(manager.create(nextStates))).singletonOrThrow().duplicate()
 
                 val targetMax = output.max(intArrayOf(1))
                 val donesTensor = manager.create(dones).flatten()
@@ -149,13 +154,25 @@ class DeepQLearningDJL2(config: DQNConfigFlat) {
                 val tdTarget = manager.create(rewards).flatten()
                     .add(manager.create(gamma).mul(targetMax).mul(ones.sub(donesTensor)))
 
-                val obsOutput: NDArray = predictor.predict(NDList(manager.create(states))).singletonOrThrow()
+                // gradient descent
+                Engine.getInstance().newGradientCollector().use { collector ->
+                    val ps = ParameterStore(manager, false)
 
-                val actionsTensor = manager.create(actions).reshape(batchSize.toLong(), 1)
+                    val obsOutput: NDArray = qNet.forward(ps, NDList(manager.create(states))).singletonOrThrow()
+                    val actionsTensor = manager.create(actions).reshape(batchSize.toLong(), 1)
 
-                val oldVal = obsOutput.gather(actionsTensor, 1).squeeze()
-                val loss = lossFunc.evaluate(NDList(oldVal), NDList(tdTarget))
-                gradientUpdate(loss)
+                    val oldVal = obsOutput.gather(actionsTensor, 1).squeeze()
+                    val loss = lossFunc.evaluate(NDList(oldVal), NDList(tdTarget))
+                    collector.backward(loss)
+
+                    for (params in qNet.getParameters()) {
+                        val params_arr = params.value.getArray()
+                        optimizer.update(params.key, params_arr, params_arr.gradient)
+                    }
+                    collector.zeroGradients()
+                }
+
+//                gradientUpdate(loss)
             }
 
             if (globalStep % targetNetworkFrequency == 0) {
@@ -165,13 +182,13 @@ class DeepQLearningDJL2(config: DQNConfigFlat) {
     }
 
     protected fun gradientUpdate(loss: NDArray) {
-        Engine.getInstance().newGradientCollector().use { collector ->
-            collector.backward(loss)
-            for (params in qNetwork.getBlock().getParameters()) {
-                val params_arr = params.value.getArray()
-                optimizer.update(params.key, params_arr, params_arr.gradient)
-            }
-        }
+//        Engine.getInstance().newGradientCollector().use { collector ->
+//            collector.backward(loss)
+//            for (params in qNetwork.getBlock().getParameters()) {
+//                val params_arr = params.value.getArray()
+//                optimizer.update(params.key, params_arr, params_arr.gradient)
+//            }
+//        }
     }
 
     private fun linearSchedule(startE: Float, endE: Float, duration: Float, t: Int): Float {
@@ -196,23 +213,14 @@ class DeepQLearningDJL2(config: DQNConfigFlat) {
         } else {
             printCollector()
             mainManager.newSubManager().use { manager ->
-                val score: NDArray = predictor.predict(NDList(manager.create(state))).singletonOrThrow()
+                val score: NDArray = qNet.predict(NDList(manager.create(state))).singletonOrThrow()
                 score.argMax().getLong().toInt()
             }
         }
     }
 
     protected fun syncNets() {
-        val baos = ByteArrayOutputStream()
-        val os = DataOutputStream(baos)
-        qNetwork.getBlock().saveParameters(os)
-
-        val bais = ByteArrayInputStream(baos.toByteArray())
-        targetNetworkManager.close()
-        targetNetworkManager = mainManager.newSubManager()
-        targetNetwork.block.loadParameters(targetNetworkManager, DataInputStream(bais))
-
-        targetPredictor = targetNetwork.newPredictor(NoopTranslator())
+        targetNet.copyParams(qNet)
     }
 
     fun close() {

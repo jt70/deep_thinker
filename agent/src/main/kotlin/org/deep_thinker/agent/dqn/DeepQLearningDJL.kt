@@ -47,9 +47,9 @@ class DeepQLearningDJL(val config: DQNConfig) : DeepQLearning {
 
 
     fun printCollector() {
-        Engine.getInstance().newGradientCollector().use { collector ->
-            println(collector)
-        }
+//        Engine.getInstance().newGradientCollector().use { collector ->
+//            println(collector)
+//        }
     }
 
     override fun getFirstAction(message: GetFirstAction): Int {
