@@ -6,7 +6,7 @@ import io.vertx.core.eventbus.EventBus
 import io.vertx.core.eventbus.Message
 import org.deep_thinker.model.*
 
-class DeepQLearningVerticle(val deepQLearning: DeepQLearning, val topicGenerator: TopicGenerator) : AbstractVerticle() {
+class DeepQLearningVerticle(val deepQLearning: DeepQLearningDJL, val topicGenerator: TopicGenerator) : AbstractVerticle() {
     private lateinit var bus: EventBus
     override fun start(startPromise: Promise<Void>) {
         println("DeepQLearningVerticle started")
@@ -28,6 +28,7 @@ class DeepQLearningVerticle(val deepQLearning: DeepQLearning, val topicGenerator
 
     private fun getFirstAction(m: Message<GetFirstAction>) {
         val message = m.body()
+        deepQLearning.printCollector()
         val action = deepQLearning.getFirstAction(message)
         bus.send(topicGenerator.getTakeActionTopic(message.envId), TakeAction(action))
     }

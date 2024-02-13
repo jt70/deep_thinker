@@ -9,36 +9,63 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.training.loss.L2Loss
+import ai.djl.training.optimizer.Adam
 import ai.djl.training.optimizer.Optimizer
 import ai.djl.translate.NoopTranslator
 import com.google.flatbuffers.FloatVector
 import org.deep_thinker.model.*
-import java.io.*
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.DataInputStream
+import java.io.DataOutputStream
 import kotlin.random.Random
 
-class DeepQLearningDJL2(val config: DQNConfigFlat) {
-    private val previousObservation = HashMap<String, Pair<FloatArray, Int>>()
-    private val replayBuffer = ReplayBuffer(config.replayBufferSize(), config.numInputs())
-    val lossFunc = L2Loss()
-    val optimizer =
-        Optimizer.adam().optLearningRateTracker(ai.djl.training.tracker.Tracker.fixed(config.learningRate())).build()
-    private var globalStep = 0
-    private val mainManager = NDManager.newBaseManager()
-    val qNetworkManager = mainManager.newSubManager()
-    var targetNetworkManager = mainManager.newSubManager()
-    val qNetwork = Model.newInstance("qNetwork")
-    val targetNetwork = Model.newInstance("targetNetwork")
+class DeepQLearningDJL2(config: DQNConfigFlat) {
+    private val numActions: Int = config.numActions()
+    private val totalTimesteps: Int = config.totalTimesteps()
+    private val explorationFraction: Float = config.explorationFraction()
+    private val endEpsilon: Float = config.endEpsilon()
+    private val startEpsilon: Float = config.startEpsilon()
+    private val targetNetworkFrequency: Int = config.targetNetworkFrequency()
+    private val gamma: Float = config.gamma()
+    private val batchSize: Int = config.batchSize()
+    private val trainFrequency: Int = config.trainFrequency()
+    private val learningStarts: Int = config.learningStarts()
+    private val previousObservation: HashMap<String, Pair<FloatArray, Int>> = HashMap()
+    private val replayBuffer: ReplayBuffer = ReplayBuffer(config.replayBufferSize(), config.numInputs())
+    private val lossFunc: L2Loss = L2Loss()
+    private val optimizer: Adam = Optimizer.adam().optLearningRateTracker(ai.djl.training.tracker.Tracker.fixed(config.learningRate())).build()
+    private var globalStep: Int = 0
+    private val mainManager: NDManager = NDManager.newBaseManager()
+    private val qNetworkManager: NDManager = mainManager.newSubManager()
+    private var targetNetworkManager: NDManager = mainManager.newSubManager()
+    private val qNetwork: Model = Model.newInstance("qNetwork")
+    private val targetNetwork: Model = Model.newInstance("targetNetwork")
 
     init {
+        printCollector()
+
         val net = Mlp(config.numInputs(), config.numActions(), intArrayOf(config.hidden1Size(), config.hidden2Size()))
         net.initialize(qNetworkManager, DataType.FLOAT32, Shape(config.numInputs().toLong()))
         qNetwork.block = net
+
+        printCollector()
 
         val t = Mlp(config.numInputs(), config.numActions(), intArrayOf(config.hidden1Size(), config.hidden2Size()))
         t.initialize(targetNetworkManager, DataType.FLOAT32, Shape(config.numInputs().toLong()))
         targetNetwork.block = t
 
+        printCollector()
+
         syncNets()
+
+        printCollector()
+    }
+
+    private fun printCollector() {
+//        Engine.getInstance().newGradientCollector().use { collector ->
+//            println(collector)
+//        }
     }
 
     var predictor = qNetwork.newPredictor(NoopTranslator());
@@ -46,6 +73,7 @@ class DeepQLearningDJL2(val config: DQNConfigFlat) {
 
 
     fun getFirstAction(message: GetFirstActionFlat): Int {
+        printCollector()
         val envId = message.envId()
         val obs = getFloatArray(message.stateVector(), message.stateLength())
         val action = selectAction(globalStep, obs)
@@ -101,8 +129,8 @@ class DeepQLearningDJL2(val config: DQNConfigFlat) {
     }
 
     private fun checkTraining() {
-        if (globalStep > config.learningStarts() && globalStep % config.trainFrequency() == 0) {
-            var sample = replayBuffer.sample(config.batchSize());
+        if (globalStep > learningStarts && globalStep % trainFrequency == 0) {
+            var sample = replayBuffer.sample(batchSize);
 
             var states = sample.states
             var actions = sample.actions
@@ -111,6 +139,7 @@ class DeepQLearningDJL2(val config: DQNConfigFlat) {
             var nextStates = sample.nextStates
 
             mainManager.newSubManager().use { manager ->
+
                 val output: NDArray =
                     targetPredictor.predict(NDList(manager.create(nextStates))).singletonOrThrow().duplicate()
 
@@ -118,18 +147,18 @@ class DeepQLearningDJL2(val config: DQNConfigFlat) {
                 val donesTensor = manager.create(dones).flatten()
                 val ones = manager.ones(donesTensor.shape)
                 val tdTarget = manager.create(rewards).flatten()
-                    .add(manager.create(config.gamma()).mul(targetMax).mul(ones.sub(donesTensor)))
+                    .add(manager.create(gamma).mul(targetMax).mul(ones.sub(donesTensor)))
 
                 val obsOutput: NDArray = predictor.predict(NDList(manager.create(states))).singletonOrThrow()
 
-                val actionsTensor = manager.create(actions).reshape(config.batchSize().toLong(), 1)
-                val oldVal = obsOutput.gather(actionsTensor, 1).squeeze()
+                val actionsTensor = manager.create(actions).reshape(batchSize.toLong(), 1)
 
+                val oldVal = obsOutput.gather(actionsTensor, 1).squeeze()
                 val loss = lossFunc.evaluate(NDList(oldVal), NDList(tdTarget))
                 gradientUpdate(loss)
             }
 
-            if (globalStep % config.targetNetworkFrequency() == 0) {
+            if (globalStep % targetNetworkFrequency == 0) {
                 syncNets()
             }
         }
@@ -152,9 +181,9 @@ class DeepQLearningDJL2(val config: DQNConfigFlat) {
 
     fun getEpsilon(t: Int): Float {
         return linearSchedule(
-            config.startEpsilon(),
-            config.endEpsilon(),
-            config.explorationFraction() * config.totalTimesteps(),
+            startEpsilon,
+            endEpsilon,
+            explorationFraction * totalTimesteps,
             t
         )
     }
@@ -163,8 +192,9 @@ class DeepQLearningDJL2(val config: DQNConfigFlat) {
         var epsilon = getEpsilon(globalStep)
         var r = Random.nextDouble()
         return if (r < epsilon) {
-            Random.nextInt(config.numActions())
+            Random.nextInt(numActions)
         } else {
+            printCollector()
             mainManager.newSubManager().use { manager ->
                 val score: NDArray = predictor.predict(NDList(manager.create(state))).singletonOrThrow()
                 score.argMax().getLong().toInt()

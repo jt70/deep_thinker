@@ -9,12 +9,8 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.translate.NoopTranslator
-import io.vertx.core.AsyncResult
-import io.vertx.core.CompositeFuture
-import io.vertx.core.Future
-import io.vertx.core.Vertx
+import io.vertx.core.*
 import io.vertx.core.eventbus.EventBus
-import org.deep_thinker.model.DQNConfig
 import org.deep_thinker.agent.dqn.DeepQLearningDJL
 import org.deep_thinker.agent.dqn.DeepQLearningVerticle
 import org.deep_thinker.model.*
@@ -32,7 +28,7 @@ fun runDQNExperiment(
     modelPath: String,
     createEnv: () -> Environment<Int, FloatArray>
 ) {
-    val vertx: Vertx = Vertx.vertx()
+    val vertx: Vertx = Vertx.vertx(VertxOptions().setBlockedThreadCheckInterval(1000 * 60 * 60))
     val eventBus = vertx.eventBus()
 
     registerCodecs(eventBus)
@@ -87,6 +83,9 @@ fun runDQNExperiment(
             println("Deployment failed!")
         }
     }
+
+    Thread.sleep(1000)
+    deepQLearning.printCollector()
 
     // wait for model to be saved
     modelSavedFuture.get()

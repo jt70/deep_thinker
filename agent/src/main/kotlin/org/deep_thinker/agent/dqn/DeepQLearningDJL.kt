@@ -39,13 +39,21 @@ class DeepQLearningDJL(val config: DQNConfig) : DeepQLearning {
         targetNetwork.block = t
 
         syncNets()
+        printCollector()
     }
 
     var predictor = qNetwork.newPredictor(NoopTranslator());
     var targetPredictor = targetNetwork.newPredictor(NoopTranslator());
 
 
+    fun printCollector() {
+        Engine.getInstance().newGradientCollector().use { collector ->
+            println(collector)
+        }
+    }
+
     override fun getFirstAction(message: GetFirstAction): Int {
+        printCollector()
         val envId = message.envId
         val obs = message.state
         val action = selectAction(globalStep, obs)
@@ -66,6 +74,7 @@ class DeepQLearningDJL(val config: DQNConfig) : DeepQLearning {
     }
 
     override fun getAction(message: GetAction): Int {
+        printCollector()
         val envId = message.envId
         val state = message.state
 
@@ -82,6 +91,7 @@ class DeepQLearningDJL(val config: DQNConfig) : DeepQLearning {
     }
 
     override fun episodeComplete(episodeComplete: EpisodeComplete) {
+        printCollector()
         var (prevObs, prevAction) = previousObservation[episodeComplete.envId]!!
         replayBuffer.add(prevObs, prevAction, episodeComplete.reward, true, episodeComplete.state)
         previousObservation.remove(episodeComplete.envId)
@@ -93,6 +103,7 @@ class DeepQLearningDJL(val config: DQNConfig) : DeepQLearning {
 
     private fun checkTraining() {
         if (globalStep > config.learningStarts && globalStep % config.trainFrequency == 0) {
+            printCollector()
             var sample = replayBuffer.sample(config.batchSize);
 
             var states = sample.states
@@ -101,22 +112,28 @@ class DeepQLearningDJL(val config: DQNConfig) : DeepQLearning {
             var dones = sample.dones
             var nextStates = sample.nextStates
 
+            printCollector()
             mainManager.newSubManager().use { manager ->
                 val output: NDArray =
                     targetPredictor.predict(NDList(manager.create(nextStates))).singletonOrThrow().duplicate()
+                printCollector()
 
                 val targetMax = output.max(intArrayOf(1))
                 val donesTensor = manager.create(dones).flatten()
                 val ones = manager.ones(donesTensor.shape)
+                printCollector()
                 val tdTarget = manager.create(rewards).flatten()
                     .add(manager.create(config.gamma).mul(targetMax).mul(ones.sub(donesTensor)))
 
                 val obsOutput: NDArray = predictor.predict(NDList(manager.create(states))).singletonOrThrow()
+                printCollector()
 
                 val actionsTensor = manager.create(actions).reshape(config.batchSize.toLong(), 1)
                 val oldVal = obsOutput.gather(actionsTensor, 1).squeeze()
 
+                printCollector()
                 val loss = lossFunc.evaluate(NDList(oldVal), NDList(tdTarget))
+                printCollector()
                 gradientUpdate(loss)
             }
 
@@ -156,6 +173,7 @@ class DeepQLearningDJL(val config: DQNConfig) : DeepQLearning {
         return if (r < epsilon) {
             Random.nextInt(config.numActions)
         } else {
+            printCollector()
             mainManager.newSubManager().use { manager ->
                 val score: NDArray = predictor.predict(NDList(manager.create(state))).singletonOrThrow()
                 score.argMax().getLong().toInt()

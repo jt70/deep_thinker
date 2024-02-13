@@ -2,6 +2,7 @@ package org.deep_thinker.cartpole_dqn;
 
 import com.google.flatbuffers.FlatBufferBuilder;
 import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
 import org.deep_thinker.env.cartpole.Cartpole;
 import org.deep_thinker.model.*;
 import org.deep_thinker.verticles.DQNAgentFactoryVerticle;
@@ -20,7 +21,9 @@ public class CartpoleDQNTest {
 
     @BeforeAll
     public static void setUp() {
-        Vertx vertx = Vertx.vertx();
+        //Vertx vertx = Vertx.vertx();
+        Vertx vertx = Vertx.vertx(new VertxOptions().setBlockedThreadCheckInterval(1000 * 60 * 60));
+
         vertx.deployVerticle(new DQNAgentFactoryVerticle());
 
         var server = new DeepThinkerZeroMQServer(vertx);
