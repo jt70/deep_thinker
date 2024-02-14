@@ -7,7 +7,6 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.nn.ParameterList
-import ai.djl.pytorch.engine.PtNDManager
 import ai.djl.training.ParameterStore
 import ai.djl.translate.NoopTranslator
 import java.io.ByteArrayInputStream
@@ -15,7 +14,13 @@ import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
 
-class DeepQNetworkDJL(val parentManager: NDManager, name: String, numInputs: Int, numActions: Int, hiddenSizes: IntArray) {
+class DeepQNetworkDJL(
+    val parentManager: NDManager,
+    name: String,
+    numInputs: Int,
+    numActions: Int,
+    hiddenSizes: IntArray
+) {
     val model: Model = Model.newInstance(name)
     var manager = parentManager.newSubManager()
 

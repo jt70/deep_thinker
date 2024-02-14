@@ -1,7 +1,6 @@
 package org.deep_thinker.serde;
 
 import org.deep_thinker.model.GetActionFlat;
-import org.deep_thinker.model.GetFirstActionFlat;
 
 import java.nio.ByteBuffer;
 

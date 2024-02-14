@@ -1,7 +1,6 @@
 package org.deep_thinker.serde;
 
 import org.deep_thinker.model.DQNConfigFlat;
-import org.deep_thinker.model.EpisodeCompleteFlat;
 
 import java.nio.ByteBuffer;
 

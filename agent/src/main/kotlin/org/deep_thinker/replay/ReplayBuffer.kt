@@ -1,4 +1,4 @@
-package org.deep_thinker.model
+package org.deep_thinker.replay
 
 class ReplayBuffer(val capacity: Int, val observationLength: Int) {
   var total = 0

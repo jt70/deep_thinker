@@ -4,9 +4,10 @@ import com.google.flatbuffers.FlatBufferBuilder;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import org.deep_thinker.env.cartpole.Cartpole;
-import org.deep_thinker.model.*;
-import org.deep_thinker.verticles.DQNAgentFactoryVerticle;
-import org.deep_thinker.zeromq.client.ZeroMQClient;
+import org.deep_thinker.model.DQNConfigFlat;
+import org.deep_thinker.model.DeepThinkerClient;
+import org.deep_thinker.model.Step;
+import org.deep_thinker.agent.dqn.DQNAgentFactoryVerticle;
 import org.deep_thinker.zeromq.client.ZeroMQFlatBufferClient;
 import org.example.org.deep_thinker.zeromq.server.DeepThinkerZeroMQServer;
 import org.junit.jupiter.api.BeforeAll;
@@ -21,7 +22,6 @@ public class CartpoleDQNTest {
 
     @BeforeAll
     public static void setUp() {
-        //Vertx vertx = Vertx.vertx();
         Vertx vertx = Vertx.vertx(new VertxOptions().setBlockedThreadCheckInterval(1000 * 60 * 60));
 
         vertx.deployVerticle(new DQNAgentFactoryVerticle());
