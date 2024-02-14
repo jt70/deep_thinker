@@ -2,24 +2,18 @@ plugins {
     id("java")
 }
 
-group = "org.deep_thinker"
+group = "org.example"
 version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
 }
 
-val vertxVersion = "4.5.1"
-
 dependencies {
-    implementation(project(":zeromq_client"))
-    implementation(project(":zeromq_server"))
     implementation(project(":model"))
-    implementation(project(":agent"))
-    implementation(project(":cartpole_environment"))
-    implementation(platform("io.vertx:vertx-stack-depchain:$vertxVersion"))
-    implementation("io.vertx:vertx-core")
+    implementation("org.zeromq:jeromq:0.5.4")
     implementation("com.google.flatbuffers:flatbuffers-java:23.5.26")
+
     testImplementation(platform("org.junit:junit-bom:5.9.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 }

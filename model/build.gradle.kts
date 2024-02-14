@@ -10,6 +10,8 @@ repositories {
 }
 
 dependencies {
+    implementation("com.google.flatbuffers:flatbuffers-java:23.5.26")
+
     testImplementation("org.jetbrains.kotlin:kotlin-test")
 }
 

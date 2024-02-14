@@ -20,6 +20,7 @@ val junitJupiterVersion = "5.9.1"
 
 dependencies {
     implementation(project(":model"))
+    implementation("com.google.flatbuffers:flatbuffers-java:23.5.26")
     implementation(platform("io.vertx:vertx-stack-depchain:$vertxVersion"))
     implementation("io.vertx:vertx-lang-kotlin")
     testImplementation("io.vertx:vertx-junit5")

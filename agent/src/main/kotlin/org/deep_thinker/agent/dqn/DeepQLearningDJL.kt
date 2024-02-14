@@ -1,53 +1,64 @@
 package org.deep_thinker.agent.dqn
 
-import ai.djl.Model
-import ai.djl.basicmodelzoo.basic.Mlp
 import ai.djl.engine.Engine
 import ai.djl.ndarray.NDArray
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
-import ai.djl.ndarray.types.DataType
-import ai.djl.ndarray.types.Shape
+import ai.djl.training.ParameterStore
 import ai.djl.training.loss.L2Loss
+import ai.djl.training.optimizer.Adam
 import ai.djl.training.optimizer.Optimizer
-import ai.djl.translate.NoopTranslator
-import org.deep_thinker.model.*
-import java.io.*
-import java.nio.file.Files
+import com.google.flatbuffers.FloatVector
+import org.deep_thinker.model.DQNConfigFlat
+import org.deep_thinker.model.EpisodeCompleteFlat
+import org.deep_thinker.model.GetActionFlat
+import org.deep_thinker.model.GetFirstActionFlat
+import org.deep_thinker.replay.ReplayBuffer
+import kotlin.math.max
 import kotlin.random.Random
 
-class DeepQLearningDJL(val config: DQNConfig) : DeepQLearning {
-    private val previousObservation = HashMap<String, Pair<FloatArray, Int>>()
-    private val replayBuffer = ReplayBuffer(config.replayBufferSize, config.numInputs)
-    val lossFunc = L2Loss()
-    val optimizer =
-        Optimizer.adam().optLearningRateTracker(ai.djl.training.tracker.Tracker.fixed(config.learningRate)).build()
-    private var globalStep = 0
-    private val mainManager = NDManager.newBaseManager()
-    val qNetworkManager = mainManager.newSubManager()
-    var targetNetworkManager = mainManager.newSubManager()
-    val qNetwork = Model.newInstance("qNetwork")
-    val targetNetwork = Model.newInstance("targetNetwork")
+
+class DeepQLearningDJL(config: DQNConfigFlat) {
+    private val numActions: Int = config.numActions()
+    private val totalTimesteps: Int = config.totalTimesteps()
+    private val explorationFraction: Float = config.explorationFraction()
+    private val endEpsilon: Float = config.endEpsilon()
+    private val startEpsilon: Float = config.startEpsilon()
+    private val targetNetworkFrequency: Int = config.targetNetworkFrequency()
+    private val gamma: Float = config.gamma()
+    private val batchSize: Int = config.batchSize()
+    private val trainFrequency: Int = config.trainFrequency()
+    private val learningStarts: Int = config.learningStarts()
+    private val previousObservation: HashMap<String, Pair<FloatArray, Int>> = HashMap()
+    private val replayBuffer: ReplayBuffer = ReplayBuffer(config.replayBufferSize(), config.numInputs())
+    private val lossFunc: L2Loss = L2Loss()
+    private val optimizer: Adam =
+        Optimizer.adam().optLearningRateTracker(ai.djl.training.tracker.Tracker.fixed(config.learningRate())).build()
+    private var globalStep: Int = 0
+    private val mainManager: NDManager = NDManager.newBaseManager()
+
+    private val qNet = DeepQNetworkDJL(
+        mainManager,
+        "qNetwork",
+        config.numInputs(),
+        config.numActions(),
+        intArrayOf(config.hidden1Size(), config.hidden2Size())
+    )
+    private val targetNet = DeepQNetworkDJL(
+        mainManager,
+        "targetNetwork",
+        config.numInputs(),
+        config.numActions(),
+        intArrayOf(config.hidden1Size(), config.hidden2Size())
+    )
 
     init {
-        val net = Mlp(config.numInputs, config.numActions, intArrayOf(config.hidden1Size, config.hidden2Size))
-        net.initialize(qNetworkManager, DataType.FLOAT32, Shape(config.numInputs.toLong()))
-        qNetwork.block = net
-
-        val t = Mlp(config.numInputs, config.numActions, intArrayOf(config.hidden1Size, config.hidden2Size))
-        t.initialize(targetNetworkManager, DataType.FLOAT32, Shape(config.numInputs.toLong()))
-        targetNetwork.block = t
-
         syncNets()
     }
 
-    var predictor = qNetwork.newPredictor(NoopTranslator());
-    var targetPredictor = targetNetwork.newPredictor(NoopTranslator());
-
-
-    override fun getFirstAction(message: GetFirstAction): Int {
-        val envId = message.envId
-        val obs = message.state
+    fun getFirstAction(message: GetFirstActionFlat): Int {
+        val envId = message.envId()
+        val obs = getFloatArray(message.stateVector(), message.stateLength())
         val action = selectAction(globalStep, obs)
 
         previousObservation[envId] = Pair(obs, action)
@@ -58,19 +69,20 @@ class DeepQLearningDJL(val config: DQNConfig) : DeepQLearning {
         return action
     }
 
-    override fun saveModel(message: SaveModel) {
-        val paramFile = File(message.path)
-        val os = DataOutputStream(Files.newOutputStream(paramFile.toPath()))
-        qNetwork.getBlock().saveParameters(os)
-        os.close()
+    private fun getFloatArray(vector: FloatVector, length: Int): FloatArray {
+        val array = FloatArray(length)
+        for (i in 0 until length) {
+            array[i] = vector.get(i)
+        }
+        return array
     }
 
-    override fun getAction(message: GetAction): Int {
-        val envId = message.envId
-        val state = message.state
+    fun getAction(message: GetActionFlat): Int {
+        val envId = message.envId()
+        val state = getFloatArray(message.stateVector(), message.stateLength())
 
         val (prevState, prevAction) = previousObservation[envId]!!
-        replayBuffer.add(prevState, prevAction, message.reward, false, state)
+        replayBuffer.add(prevState, prevAction, message.reward(), false, state)
 
         val action = selectAction(globalStep, state)
 
@@ -81,10 +93,11 @@ class DeepQLearningDJL(val config: DQNConfig) : DeepQLearning {
         return action
     }
 
-    override fun episodeComplete(episodeComplete: EpisodeComplete) {
-        var (prevObs, prevAction) = previousObservation[episodeComplete.envId]!!
-        replayBuffer.add(prevObs, prevAction, episodeComplete.reward, true, episodeComplete.state)
-        previousObservation.remove(episodeComplete.envId)
+    fun episodeComplete(episodeComplete: EpisodeCompleteFlat) {
+        val (prevObs, prevAction) = previousObservation[episodeComplete.envId()]!!
+        val state = getFloatArray(episodeComplete.stateVector(), episodeComplete.stateLength())
+        replayBuffer.add(prevObs, prevAction, episodeComplete.reward(), true, state)
+        previousObservation.remove(episodeComplete.envId())
 
         globalStep++
 
@@ -92,91 +105,110 @@ class DeepQLearningDJL(val config: DQNConfig) : DeepQLearning {
     }
 
     private fun checkTraining() {
-        if (globalStep > config.learningStarts && globalStep % config.trainFrequency == 0) {
-            var sample = replayBuffer.sample(config.batchSize);
+        if (globalStep > learningStarts && globalStep % trainFrequency == 0) {
+            val sample = replayBuffer.sample(batchSize)
 
-            var states = sample.states
-            var actions = sample.actions
-            var rewards = sample.rewards
-            var dones = sample.dones
-            var nextStates = sample.nextStates
+            val states = sample.states
+            val actions = sample.actions
+            val rewards = sample.rewards
+            val dones = sample.dones
+            val nextStates = sample.nextStates
 
             mainManager.newSubManager().use { manager ->
-                val output: NDArray =
-                    targetPredictor.predict(NDList(manager.create(nextStates))).singletonOrThrow().duplicate()
+                val tdTarget = getTdTarget(manager, nextStates, dones, rewards)
 
-                val targetMax = output.max(intArrayOf(1))
-                val donesTensor = manager.create(dones).flatten()
-                val ones = manager.ones(donesTensor.shape)
-                val tdTarget = manager.create(rewards).flatten()
-                    .add(manager.create(config.gamma).mul(targetMax).mul(ones.sub(donesTensor)))
-
-                val obsOutput: NDArray = predictor.predict(NDList(manager.create(states))).singletonOrThrow()
-
-                val actionsTensor = manager.create(actions).reshape(config.batchSize.toLong(), 1)
-                val oldVal = obsOutput.gather(actionsTensor, 1).squeeze()
-
-                val loss = lossFunc.evaluate(NDList(oldVal), NDList(tdTarget))
-                gradientUpdate(loss)
+                // gradient descent
+                gradientDescent(manager, states, actions, tdTarget)
             }
 
-            if (globalStep % config.targetNetworkFrequency == 0) {
+            if (globalStep % targetNetworkFrequency == 0) {
                 syncNets()
             }
         }
     }
 
-    protected fun gradientUpdate(loss: NDArray) {
+    private fun gradientDescent(
+        manager: NDManager,
+        states: Array<FloatArray>,
+        actions: IntArray,
+        tdTarget: NDArray?
+    ) {
         Engine.getInstance().newGradientCollector().use { collector ->
+            val loss = getLoss(manager, states, actions, tdTarget)
             collector.backward(loss)
-            for (params in qNetwork.getBlock().getParameters()) {
-                val params_arr = params.value.getArray()
-                optimizer.update(params.key, params_arr, params_arr.gradient)
-            }
+            updateParams()
         }
     }
 
+    private fun getLoss(
+        manager: NDManager,
+        states: Array<FloatArray>,
+        actions: IntArray,
+        tdTarget: NDArray?
+    ): NDArray? {
+        val ps = ParameterStore(manager, false)
+
+        val obsOutput: NDArray = qNet.forward(ps, NDList(manager.create(states))).singletonOrThrow()
+        val actionsTensor = manager.create(actions).reshape(batchSize.toLong(), 1)
+
+        val oldVal = obsOutput.gather(actionsTensor, 1).squeeze()
+        val loss = lossFunc.evaluate(NDList(oldVal), NDList(tdTarget))
+        return loss
+    }
+
+    private fun updateParams() {
+        for (params in qNet.getParameters()) {
+            val paramsArr = params.value.getArray()
+            optimizer.update(params.key, paramsArr, paramsArr.gradient)
+        }
+        qNet.zeroGradients()
+    }
+
+    private fun getTdTarget(
+        manager: NDManager,
+        nextStates: Array<FloatArray>,
+        dones: FloatArray,
+        rewards: FloatArray
+    ): NDArray? {
+        val output: NDArray =
+            targetNet.predict(NDList(manager.create(nextStates))).singletonOrThrow().duplicate()
+
+        val targetMax = output.max(intArrayOf(1))
+        val donesTensor = manager.create(dones).flatten()
+        val ones = manager.ones(donesTensor.shape)
+        val tdTarget = manager.create(rewards).flatten()
+            .add(manager.create(gamma).mul(targetMax).mul(ones.sub(donesTensor)))
+        return tdTarget
+    }
+
     private fun linearSchedule(startE: Float, endE: Float, duration: Float, t: Int): Float {
-        var slope = (endE - startE) / duration
-        return Math.max(endE, slope * t + startE)
+        val slope = (endE - startE) / duration
+        return max(endE, slope * t + startE)
     }
 
     fun getEpsilon(t: Int): Float {
         return linearSchedule(
-            config.startEpsilon,
-            config.endEpsilon,
-            config.explorationFraction * config.totalTimesteps,
+            startEpsilon,
+            endEpsilon,
+            explorationFraction * totalTimesteps,
             t
         )
     }
 
     private fun selectAction(globalStep: Int, state: FloatArray): Int {
-        var epsilon = getEpsilon(globalStep)
-        var r = Random.nextDouble()
+        val epsilon = getEpsilon(globalStep)
+        val r = Random.nextDouble()
         return if (r < epsilon) {
-            Random.nextInt(config.numActions)
+            Random.nextInt(numActions)
         } else {
             mainManager.newSubManager().use { manager ->
-                val score: NDArray = predictor.predict(NDList(manager.create(state))).singletonOrThrow()
+                val score: NDArray = qNet.predict(NDList(manager.create(state))).singletonOrThrow()
                 score.argMax().getLong().toInt()
             }
         }
     }
 
     protected fun syncNets() {
-        val baos = ByteArrayOutputStream()
-        val os = DataOutputStream(baos)
-        qNetwork.getBlock().saveParameters(os)
-
-        val bais = ByteArrayInputStream(baos.toByteArray())
-        targetNetworkManager.close()
-        targetNetworkManager = mainManager.newSubManager()
-        targetNetwork.block.loadParameters(targetNetworkManager, DataInputStream(bais))
-
-        targetPredictor = targetNetwork.newPredictor(NoopTranslator())
-    }
-
-    override fun close() {
-        mainManager.close()
+        targetNet.copyParams(qNet)
     }
 }
