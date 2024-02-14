@@ -3,7 +3,6 @@ package org.deep_thinker.agent.dqn
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Promise
 import io.vertx.core.eventbus.Message
-import org.deep_thinker.agent.dqn.DeepQLearningAgentVerticle
 import org.deep_thinker.serde.DQNConfigFlatSerde
 import org.deep_thinker.serde.IntFlatSerde
 

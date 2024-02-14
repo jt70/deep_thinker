@@ -9,7 +9,7 @@ class ReplayBuffer(val capacity: Int, val observationLength: Int) {
   var nextStates = Array(capacity) { FloatArray(observationLength) }
 
   fun add(state: FloatArray, action: Int, reward: Float, done: Boolean, nextState: FloatArray) {
-    var index = total % capacity
+    val index = total % capacity
 
     actions[index] = action
     rewards[index] = reward
@@ -20,8 +20,8 @@ class ReplayBuffer(val capacity: Int, val observationLength: Int) {
   }
 
   fun sample(batchSize: Int): ReplayBufferSample {
-    var maxIndex = Math.min(total, capacity);
-    var indicies = mutableListOf<Int>()
+    val maxIndex = Math.min(total, capacity)
+    val indicies = mutableListOf<Int>()
     var i = 0
     while (i < batchSize) {
       indicies.addLast((Math.random() * maxIndex).toInt())

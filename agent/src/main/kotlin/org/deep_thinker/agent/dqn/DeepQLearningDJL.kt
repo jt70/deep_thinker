@@ -157,8 +157,7 @@ class DeepQLearningDJL(config: DQNConfigFlat) {
         Engine.getInstance().newGradientCollector().use { collector ->
             val loss = getLoss(manager, states, actions, tdTarget)
             collector.backward(loss)
-
-            updateParams(collector)
+            updateParams()
         }
     }
 
@@ -178,13 +177,12 @@ class DeepQLearningDJL(config: DQNConfigFlat) {
         return loss
     }
 
-    private fun updateParams(collector: GradientCollector) {
+    private fun updateParams() {
         for (params in qNet.getParameters()) {
             val paramsArr = params.value.getArray()
             optimizer.update(params.key, paramsArr, paramsArr.gradient)
         }
         qNet.zeroGradients()
-        //collector.zeroGradients()
     }
 
     private fun getTdTarget(
@@ -234,9 +232,5 @@ class DeepQLearningDJL(config: DQNConfigFlat) {
 
     protected fun syncNets() {
         targetNet.copyParams(qNet)
-    }
-
-    fun close() {
-        mainManager.close()
     }
 }

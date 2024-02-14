@@ -30,7 +30,7 @@ class DeepQNetworkDJL(
         model.block = net
     }
 
-    var predictor = model.newPredictor(NoopTranslator());
+    var predictor = model.newPredictor(NoopTranslator())
 
     fun predict(ndList: NDList): NDList {
         return predictor.predict(ndList)

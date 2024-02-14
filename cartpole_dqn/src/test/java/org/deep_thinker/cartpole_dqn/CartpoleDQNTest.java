@@ -61,7 +61,7 @@ public class CartpoleDQNTest {
         ByteBuffer buffer = ByteBuffer.wrap(builder.sizedByteArray());
         var config = DQNConfigFlat.getRootAsDQNConfigFlat(buffer);
 
-        Integer totalEpisodes = 5000;
+        int totalEpisodes = 5000;
         client.createDQNAgent(config).get(50, TimeUnit.SECONDS);
         Thread.sleep(500);
 
