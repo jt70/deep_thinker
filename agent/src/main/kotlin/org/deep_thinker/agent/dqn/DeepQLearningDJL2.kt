@@ -4,17 +4,14 @@ import ai.djl.engine.Engine
 import ai.djl.ndarray.NDArray
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
+import ai.djl.training.GradientCollector
 import ai.djl.training.ParameterStore
 import ai.djl.training.loss.L2Loss
 import ai.djl.training.optimizer.Adam
 import ai.djl.training.optimizer.Optimizer
-import ai.djl.translate.NoopTranslator
 import com.google.flatbuffers.FloatVector
 import org.deep_thinker.model.*
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.io.DataInputStream
-import java.io.DataOutputStream
+import kotlin.math.max
 import kotlin.random.Random
 
 
@@ -100,13 +97,6 @@ class DeepQLearningDJL2(config: DQNConfigFlat) {
         return array
     }
 
-    fun saveModel(message: SaveModel) {
-//        val paramFile = File(message.path)
-//        val os = DataOutputStream(Files.newOutputStream(paramFile.toPath()))
-//        qNetwork.getBlock().saveParameters(os)
-//        os.close()
-    }
-
     fun getAction(message: GetActionFlat): Int {
         val envId = message.envId()
         val state = getFloatArray(message.stateVector(), message.stateLength())
@@ -124,8 +114,8 @@ class DeepQLearningDJL2(config: DQNConfigFlat) {
     }
 
     fun episodeComplete(episodeComplete: EpisodeCompleteFlat) {
-        var (prevObs, prevAction) = previousObservation[episodeComplete.envId()]!!
-        var state = getFloatArray(episodeComplete.stateVector(), episodeComplete.stateLength())
+        val (prevObs, prevAction) = previousObservation[episodeComplete.envId()]!!
+        val state = getFloatArray(episodeComplete.stateVector(), episodeComplete.stateLength())
         replayBuffer.add(prevObs, prevAction, episodeComplete.reward(), true, state)
         previousObservation.remove(episodeComplete.envId())
 
@@ -136,43 +126,19 @@ class DeepQLearningDJL2(config: DQNConfigFlat) {
 
     private fun checkTraining() {
         if (globalStep > learningStarts && globalStep % trainFrequency == 0) {
-            var sample = replayBuffer.sample(batchSize);
+            val sample = replayBuffer.sample(batchSize)
 
-            var states = sample.states
-            var actions = sample.actions
-            var rewards = sample.rewards
-            var dones = sample.dones
-            var nextStates = sample.nextStates
+            val states = sample.states
+            val actions = sample.actions
+            val rewards = sample.rewards
+            val dones = sample.dones
+            val nextStates = sample.nextStates
 
             mainManager.newSubManager().use { manager ->
-                val output: NDArray =
-                    targetNet.predict(NDList(manager.create(nextStates))).singletonOrThrow().duplicate()
-
-                val targetMax = output.max(intArrayOf(1))
-                val donesTensor = manager.create(dones).flatten()
-                val ones = manager.ones(donesTensor.shape)
-                val tdTarget = manager.create(rewards).flatten()
-                    .add(manager.create(gamma).mul(targetMax).mul(ones.sub(donesTensor)))
+                val tdTarget = getTdTarget(manager, nextStates, dones, rewards)
 
                 // gradient descent
-                Engine.getInstance().newGradientCollector().use { collector ->
-                    val ps = ParameterStore(manager, false)
-
-                    val obsOutput: NDArray = qNet.forward(ps, NDList(manager.create(states))).singletonOrThrow()
-                    val actionsTensor = manager.create(actions).reshape(batchSize.toLong(), 1)
-
-                    val oldVal = obsOutput.gather(actionsTensor, 1).squeeze()
-                    val loss = lossFunc.evaluate(NDList(oldVal), NDList(tdTarget))
-                    collector.backward(loss)
-
-                    for (params in qNet.getParameters()) {
-                        val params_arr = params.value.getArray()
-                        optimizer.update(params.key, params_arr, params_arr.gradient)
-                    }
-                    collector.zeroGradients()
-                }
-
-//                gradientUpdate(loss)
+                gradientDescent(manager, states, actions, tdTarget)
             }
 
             if (globalStep % targetNetworkFrequency == 0) {
@@ -181,19 +147,65 @@ class DeepQLearningDJL2(config: DQNConfigFlat) {
         }
     }
 
-    protected fun gradientUpdate(loss: NDArray) {
-//        Engine.getInstance().newGradientCollector().use { collector ->
-//            collector.backward(loss)
-//            for (params in qNetwork.getBlock().getParameters()) {
-//                val params_arr = params.value.getArray()
-//                optimizer.update(params.key, params_arr, params_arr.gradient)
-//            }
-//        }
+    private fun gradientDescent(
+        manager: NDManager,
+        states: Array<FloatArray>,
+        actions: IntArray,
+        tdTarget: NDArray?
+    ) {
+        Engine.getInstance().newGradientCollector().use { collector ->
+            val loss = getLoss(manager, states, actions, tdTarget)
+            collector.backward(loss)
+
+            updateParams(collector)
+        }
+    }
+
+    private fun getLoss(
+        manager: NDManager,
+        states: Array<FloatArray>,
+        actions: IntArray,
+        tdTarget: NDArray?
+    ): NDArray? {
+        val ps = ParameterStore(manager, false)
+
+        val obsOutput: NDArray = qNet.forward(ps, NDList(manager.create(states))).singletonOrThrow()
+        val actionsTensor = manager.create(actions).reshape(batchSize.toLong(), 1)
+
+        val oldVal = obsOutput.gather(actionsTensor, 1).squeeze()
+        val loss = lossFunc.evaluate(NDList(oldVal), NDList(tdTarget))
+        return loss
+    }
+
+    private fun updateParams(collector: GradientCollector) {
+        for (params in qNet.getParameters()) {
+            val paramsArr = params.value.getArray()
+            optimizer.update(params.key, paramsArr, paramsArr.gradient)
+        }
+        qNet.zeroGradients()
+        //collector.zeroGradients()
+    }
+
+    private fun getTdTarget(
+        manager: NDManager,
+        nextStates: Array<FloatArray>,
+        dones: FloatArray,
+        rewards: FloatArray
+    ): NDArray? {
+        val output: NDArray =
+            targetNet.predict(NDList(manager.create(nextStates))).singletonOrThrow().duplicate()
+
+        val targetMax = output.max(intArrayOf(1))
+        val donesTensor = manager.create(dones).flatten()
+        val ones = manager.ones(donesTensor.shape)
+        val tdTarget = manager.create(rewards).flatten()
+            .add(manager.create(gamma).mul(targetMax).mul(ones.sub(donesTensor)))
+        return tdTarget
     }
 
     private fun linearSchedule(startE: Float, endE: Float, duration: Float, t: Int): Float {
-        var slope = (endE - startE) / duration
-        return Math.max(endE, slope * t + startE)
+        val slope = (endE - startE) / duration
+        return max(endE, slope * t + startE)
     }
 
     fun getEpsilon(t: Int): Float {
@@ -206,8 +218,8 @@ class DeepQLearningDJL2(config: DQNConfigFlat) {
     }
 
     private fun selectAction(globalStep: Int, state: FloatArray): Int {
-        var epsilon = getEpsilon(globalStep)
-        var r = Random.nextDouble()
+        val epsilon = getEpsilon(globalStep)
+        val r = Random.nextDouble()
         return if (r < epsilon) {
             Random.nextInt(numActions)
         } else {

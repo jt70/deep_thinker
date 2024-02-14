@@ -7,6 +7,7 @@ import ai.djl.ndarray.NDManager
 import ai.djl.ndarray.types.DataType
 import ai.djl.ndarray.types.Shape
 import ai.djl.nn.ParameterList
+import ai.djl.pytorch.engine.PtNDManager
 import ai.djl.training.ParameterStore
 import ai.djl.translate.NoopTranslator
 import java.io.ByteArrayInputStream
@@ -54,5 +55,13 @@ class DeepQNetworkDJL(val parentManager: NDManager, name: String, numInputs: Int
         val os = DataOutputStream(baos)
         model.block.saveParameters(os)
         return baos.toByteArray()
+    }
+
+    fun zeroGradients() {
+        for (array in manager.managedArrays) {
+            if (array.hasGradient()) {
+                array.gradient.subi(array.gradient)
+            }
+        }
     }
 }
