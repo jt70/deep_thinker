@@ -36,10 +36,6 @@ class DeepQLearningDJL(config: DQNConfigFlat) {
         Optimizer.adam().optLearningRateTracker(ai.djl.training.tracker.Tracker.fixed(config.learningRate())).build()
     private var globalStep: Int = 0
     private val mainManager: NDManager = NDManager.newBaseManager()
-//    private val qNetworkManager: NDManager = mainManager.newSubManager()
-//    private var targetNetworkManager: NDManager = mainManager.newSubManager()
-    //private val qNetwork: Model = Model.newInstance("qNetwork")
-//    private val targetNetwork: Model = Model.newInstance("targetNetwork")
 
     private val qNet = DeepQNetworkDJL(
         mainManager,
@@ -57,29 +53,10 @@ class DeepQLearningDJL(config: DQNConfigFlat) {
     )
 
     init {
-//        val net = Mlp(config.numInputs(), config.numActions(), intArrayOf(config.hidden1Size(), config.hidden2Size()))
-//        net.initialize(qNetworkManager, DataType.FLOAT32, Shape(config.numInputs().toLong()))
-//        qNetwork.block = net
-
-//        val t = Mlp(config.numInputs(), config.numActions(), intArrayOf(config.hidden1Size(), config.hidden2Size()))
-//        t.initialize(targetNetworkManager, DataType.FLOAT32, Shape(config.numInputs().toLong()))
-//        targetNetwork.block = t
-//
         syncNets()
     }
 
-    private fun printCollector() {
-//        Engine.getInstance().newGradientCollector().use { collector ->
-//            println(collector)
-//        }
-    }
-
-    //var predictor = qNetwork.newPredictor(NoopTranslator());
-//    var targetPredictor = targetNetwork.newPredictor(NoopTranslator());
-
-
     fun getFirstAction(message: GetFirstActionFlat): Int {
-        printCollector()
         val envId = message.envId()
         val obs = getFloatArray(message.stateVector(), message.stateLength())
         val action = selectAction(globalStep, obs)
@@ -224,7 +201,6 @@ class DeepQLearningDJL(config: DQNConfigFlat) {
         return if (r < epsilon) {
             Random.nextInt(numActions)
         } else {
-            printCollector()
             mainManager.newSubManager().use { manager ->
                 val score: NDArray = qNet.predict(NDList(manager.create(state))).singletonOrThrow()
                 score.argMax().getLong().toInt()
