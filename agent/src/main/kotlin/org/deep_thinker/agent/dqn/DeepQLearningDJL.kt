@@ -4,13 +4,15 @@ import ai.djl.engine.Engine
 import ai.djl.ndarray.NDArray
 import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
-import ai.djl.training.GradientCollector
 import ai.djl.training.ParameterStore
 import ai.djl.training.loss.L2Loss
 import ai.djl.training.optimizer.Adam
 import ai.djl.training.optimizer.Optimizer
 import com.google.flatbuffers.FloatVector
-import org.deep_thinker.model.*
+import org.deep_thinker.model.DQNConfigFlat
+import org.deep_thinker.model.EpisodeCompleteFlat
+import org.deep_thinker.model.GetActionFlat
+import org.deep_thinker.model.GetFirstActionFlat
 import org.deep_thinker.replay.ReplayBuffer
 import kotlin.math.max
 import kotlin.random.Random
