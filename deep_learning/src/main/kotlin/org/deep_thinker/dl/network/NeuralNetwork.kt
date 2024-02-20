@@ -27,7 +27,7 @@ class NeuralNetwork(nb: Builder) {
     init {
         costFunction = nb.costFunction
         networkInputSize = nb.networkInputSize
-        optimizer = nb.optimizer
+        optimizer = nb.getOptimizer()
         l2 = nb.l2
 
         // Adding inputLayer
@@ -149,7 +149,7 @@ class NeuralNetwork(nb: Builder) {
         // defaults:
         var initializer: Initializer = Random(-0.5, 0.5)
         internal var costFunction: CostFunction = Quadratic()
-        var optimizer: Optimizer = GradientDescent(0.005)
+        var _optimizer: Optimizer = GradientDescent(0.005)
         var l2: Double = 0.0
 
         constructor(networkInputSize: Int) {
@@ -163,7 +163,7 @@ class NeuralNetwork(nb: Builder) {
         constructor(other: NeuralNetwork) {
             networkInputSize = other.networkInputSize
             costFunction = other.costFunction
-            optimizer = other.optimizer
+            _optimizer = other.optimizer
             l2 = other.l2
 
             val otherLayers = other.getLayers()
@@ -196,8 +196,12 @@ class NeuralNetwork(nb: Builder) {
         }
 
         fun setOptimizer(optimizer: Optimizer): Builder {
-            this.optimizer = optimizer
+            this._optimizer = optimizer
             return this
+        }
+
+        fun getOptimizer(): Optimizer {
+            return _optimizer
         }
 
         fun l2(l2: Double): Builder {
