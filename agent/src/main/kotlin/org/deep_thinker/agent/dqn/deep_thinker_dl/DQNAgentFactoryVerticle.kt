@@ -1,4 +1,4 @@
-package org.deep_thinker.agent.dqn
+package org.deep_thinker.agent.dqn.deep_thinker_dl
 
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Promise

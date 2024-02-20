@@ -1,4 +1,4 @@
-package org.deep_thinker.agent.dqn
+package org.deep_thinker.agent.dqn.djl
 
 import ai.djl.Model
 import ai.djl.basicmodelzoo.basic.Mlp
@@ -14,7 +14,7 @@ import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
 
-class DeepQNetworkDJL(
+class DeepQNetwork(
     val parentManager: NDManager,
     name: String,
     numInputs: Int,
@@ -44,7 +44,7 @@ class DeepQNetworkDJL(
         return model.block.parameters
     }
 
-    fun copyParams(sourceNetwork: DeepQNetworkDJL) {
+    fun copyParams(sourceNetwork: DeepQNetwork) {
         val bytes: ByteArray = sourceNetwork.serializeParams()
         val bais = ByteArrayInputStream(bytes)
 

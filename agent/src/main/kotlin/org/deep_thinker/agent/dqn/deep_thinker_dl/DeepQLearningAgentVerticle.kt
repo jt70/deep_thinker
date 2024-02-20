@@ -1,4 +1,4 @@
-package org.deep_thinker.agent.dqn
+package org.deep_thinker.agent.dqn.deep_thinker_dl
 
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Promise
@@ -15,7 +15,7 @@ class DeepQLearningAgentVerticle(private val config: DQNConfigFlat) : AbstractVe
     private val getFirstActionSerde = GetFirstActionFlatSerde()
     private val getActionSerde = GetActionFlatSerde()
     private val episodeCompleteSerde = EpisodeCompleteFlatSerde()
-    private lateinit var deepQLearning: DeepQLearningDJL
+    private lateinit var deepQLearning: DeepQLearning
     private lateinit var bus: EventBus
 
     override fun start(startPromise: Promise<Void>) {
@@ -25,7 +25,7 @@ class DeepQLearningAgentVerticle(private val config: DQNConfigFlat) : AbstractVe
         bus.consumer("getAction.${config.agentId()}", this::getAction)
         bus.consumer("episodeComplete.${config.agentId()}", this::episodeComplete)
 
-        deepQLearning = DeepQLearningDJL(config)
+        deepQLearning = DeepQLearning(config)
         println("DeepQLearningAgentVerticle started...")
         startPromise.complete()
     }

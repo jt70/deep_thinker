@@ -7,7 +7,7 @@ import org.deep_thinker.env.cartpole.Cartpole;
 import org.deep_thinker.model.DQNConfigFlat;
 import org.deep_thinker.model.DeepThinkerClient;
 import org.deep_thinker.model.Step;
-import org.deep_thinker.agent.dqn.DQNAgentFactoryVerticle;
+import org.deep_thinker.agent.dqn.djl.DQNAgentFactoryVerticle;
 import org.deep_thinker.zeromq.client.ZeroMQFlatBufferClient;
 import org.example.org.deep_thinker.zeromq.server.DeepThinkerZeroMQServer;
 import org.junit.jupiter.api.BeforeAll;

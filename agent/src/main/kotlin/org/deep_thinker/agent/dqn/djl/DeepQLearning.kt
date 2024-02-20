@@ -1,4 +1,4 @@
-package org.deep_thinker.agent.dqn
+package org.deep_thinker.agent.dqn.djl
 
 import ai.djl.engine.Engine
 import ai.djl.ndarray.NDArray
@@ -18,7 +18,7 @@ import kotlin.math.max
 import kotlin.random.Random
 
 
-class DeepQLearningDJL(config: DQNConfigFlat) {
+class DeepQLearning(config: DQNConfigFlat) {
     private val numActions: Int = config.numActions()
     private val totalTimesteps: Int = config.totalTimesteps()
     private val explorationFraction: Float = config.explorationFraction()
@@ -37,14 +37,14 @@ class DeepQLearningDJL(config: DQNConfigFlat) {
     private var globalStep: Int = 0
     private val mainManager: NDManager = NDManager.newBaseManager()
 
-    private val qNet = DeepQNetworkDJL(
+    private val qNet = DeepQNetwork(
         mainManager,
         "qNetwork",
         config.numInputs(),
         config.numActions(),
         intArrayOf(config.hidden1Size(), config.hidden2Size())
     )
-    private val targetNet = DeepQNetworkDJL(
+    private val targetNet = DeepQNetwork(
         mainManager,
         "targetNetwork",
         config.numInputs(),
