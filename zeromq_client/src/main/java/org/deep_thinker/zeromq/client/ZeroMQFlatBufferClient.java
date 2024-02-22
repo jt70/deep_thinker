@@ -103,7 +103,7 @@ public class ZeroMQFlatBufferClient implements DeepThinkerClient {
 
         publisher.send(topic, ZMQ.SNDMORE);
         publisher.send(requestMessageTypeBytes, ZMQ.SNDMORE);
-        publisher.send(requestMetadata);
+        publisher.send(requestMetadata, ZMQ.SNDMORE);
         publisher.send(requestContent);
 
         return future;

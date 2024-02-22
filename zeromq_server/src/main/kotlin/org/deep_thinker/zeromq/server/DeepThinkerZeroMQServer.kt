@@ -43,7 +43,8 @@ class DeepThinkerZeroMQServer(vertx: Vertx) {
             println("Start receiving message")
             while (true) {
                 val topic = subscriber.recvStr()
-                val messageType = getMessageType(subscriber.recv())
+                val messageTypeBytes = subscriber.recv()
+                val messageType = getMessageType(messageTypeBytes)
 
                 if (messageType == MessageTypes.REQUEST) {
                     val requestMetaData: ByteArray = subscriber.recv()
@@ -64,18 +65,18 @@ class DeepThinkerZeroMQServer(vertx: Vertx) {
         val responseId = requestMetaData.responseId()
 
         eventBus.request<ByteArray>(topic, requestContent) { message ->
-            // TODO: make threadsafe
-
             val builder = FlatBufferBuilder(20)
             val responseIdOffset = builder.createString(responseId)
             val offset = ResponseMetadata.createResponseMetadata(builder, responseIdOffset)
             builder.finish(offset)
             val responseMetadata = builder.sizedByteArray()
 
-            publisher.send(responseTopic, ZMQ.SNDMORE)
-            publisher.send(responseMessageTypeBytes, ZMQ.SNDMORE)
-            publisher.send(responseMetadata, ZMQ.SNDMORE)
-            publisher.send(message.result().body())
+            synchronized(publisher) {
+                publisher.send(responseTopic, ZMQ.SNDMORE)
+                publisher.send(responseMessageTypeBytes, ZMQ.SNDMORE)
+                publisher.send(responseMetadata, ZMQ.SNDMORE)
+                publisher.send(message.result().body())
+            }
         }
     }
 

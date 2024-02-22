@@ -18,6 +18,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 public class CartpoleDQNDJLTest {
 
     @BeforeAll
@@ -94,5 +96,41 @@ public class CartpoleDQNDJLTest {
         long end = System.currentTimeMillis();
         System.out.println("Total reward: " + totalReward);
         System.out.println("Total time: " + (end - start) + " ms");
+    }
+
+    @Test
+    public void testToUpperCase() throws ExecutionException, InterruptedException, TimeoutException {
+        DeepThinkerClient zeroMQClient = new ZeroMQFlatBufferClient();
+        String upper = zeroMQClient.toUpperCase("hello").get(5, TimeUnit.SECONDS);
+        assertEquals("HELLO", upper);
+    }
+
+    @Test
+    public void testMultiThreaded() throws InterruptedException {
+        new Thread(() -> {
+            try {
+                DeepThinkerClient zeroMQClient = new ZeroMQFlatBufferClient();
+                while (true) {
+                    String upper = zeroMQClient.toUpperCase("hello 1").get(5, TimeUnit.SECONDS);
+                    assertEquals("HELLO 1", upper);
+                }
+            } catch (ExecutionException | InterruptedException | TimeoutException e) {
+                throw new RuntimeException(e);
+            }
+        }).start();
+
+        new Thread(() -> {
+            try {
+                DeepThinkerClient zeroMQClient = new ZeroMQFlatBufferClient();
+                while (true) {
+                    String upper = zeroMQClient.toUpperCase("hello 2").get(5, TimeUnit.SECONDS);
+                    assertEquals("HELLO 2", upper);
+                }
+            } catch (ExecutionException | InterruptedException | TimeoutException e) {
+                throw new RuntimeException(e);
+            }
+        }).start();
+
+        Thread.sleep(10000);
     }
 }

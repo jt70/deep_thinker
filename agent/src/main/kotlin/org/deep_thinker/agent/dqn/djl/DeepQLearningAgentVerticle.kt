@@ -37,9 +37,19 @@ class DeepQLearningAgentVerticle(private val config: DQNConfigFlat) : AbstractVe
     }
 
     private fun getAction(m: Message<ByteArray>) {
-        val getAction = getActionSerde.deserialize(m.body())
-        val action = deepQLearning.getAction(getAction)
-        m.reply(intSerde.serialize(action))
+        try {
+            val getAction = getActionSerde.deserialize(m.body())
+            val action = deepQLearning.getAction(getAction)
+            m.reply(intSerde.serialize(action))
+        } catch (e: Exception) {
+            val getAction = getActionSerde.deserialize(m.body())
+            val action = deepQLearning.getAction(getAction)
+            m.reply(intSerde.serialize(action))
+            e.printStackTrace()
+        }
+//        val getAction = getActionSerde.deserialize(m.body())
+//        val action = deepQLearning.getAction(getAction)
+//        m.reply(intSerde.serialize(action))
     }
 
     private fun episodeComplete(m: Message<ByteArray>) {
