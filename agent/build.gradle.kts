@@ -34,10 +34,6 @@ dependencies {
     implementation("ai.djl.pytorch:pytorch-engine")
     implementation("ai.djl.pytorch:pytorch-model-zoo")
 
-    implementation("org.jetbrains.kotlinx:kotlin-deeplearning-tensorflow:0.5.2")
-    implementation ("org.tensorflow:libtensorflow:1.15.0")
-    implementation ("org.tensorflow:libtensorflow_jni_gpu:1.15.0")
-
     implementation("org.slf4j:slf4j-simple:2.0.12")
 }
 

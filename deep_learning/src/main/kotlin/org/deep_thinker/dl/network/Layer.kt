@@ -136,6 +136,10 @@ class Layer {
         return weights
     }
 
+    fun setBias(bias: Vec) {
+        this.bias = bias
+    }
+
     val state: LayerState
         // ------------------------------------------------------------------
         get() = LayerState(this)

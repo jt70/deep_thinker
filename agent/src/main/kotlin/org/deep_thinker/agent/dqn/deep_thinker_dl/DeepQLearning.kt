@@ -1,14 +1,9 @@
 package org.deep_thinker.agent.dqn.deep_thinker_dl
 
-import ai.djl.engine.Engine
 import ai.djl.ndarray.NDArray
-import ai.djl.ndarray.NDList
 import ai.djl.ndarray.NDManager
-import ai.djl.training.ParameterStore
-import ai.djl.training.loss.L2Loss
-import ai.djl.training.optimizer.Adam
-import ai.djl.training.optimizer.Optimizer
 import com.google.flatbuffers.FloatVector
+import org.deep_thinker.dl.math.Vec
 import org.deep_thinker.model.DQNConfigFlat
 import org.deep_thinker.model.EpisodeCompleteFlat
 import org.deep_thinker.model.GetActionFlat
@@ -31,25 +26,18 @@ class DeepQLearning(config: DQNConfigFlat) {
     private val learningStarts: Int = config.learningStarts()
     private val previousObservation: HashMap<String, Pair<FloatArray, Int>> = HashMap()
     private val replayBuffer: ReplayBuffer = ReplayBuffer(config.replayBufferSize(), config.numInputs())
-    private val lossFunc: L2Loss = L2Loss()
-    private val optimizer: Adam =
-        Optimizer.adam().optLearningRateTracker(ai.djl.training.tracker.Tracker.fixed(config.learningRate())).build()
     private var globalStep: Int = 0
-    private val mainManager: NDManager = NDManager.newBaseManager()
-
     private val qNet = DeepQNetwork(
-        mainManager,
-        "qNetwork",
         config.numInputs(),
         config.numActions(),
-        intArrayOf(config.hidden1Size(), config.hidden2Size())
+        intArrayOf(config.hidden1Size(), config.hidden2Size()),
+        config.learningRate()
     )
     private val targetNet = DeepQNetwork(
-        mainManager,
-        "targetNetwork",
         config.numInputs(),
         config.numActions(),
-        intArrayOf(config.hidden1Size(), config.hidden2Size())
+        intArrayOf(config.hidden1Size(), config.hidden2Size()),
+        config.learningRate()
     )
 
     init {
@@ -114,12 +102,18 @@ class DeepQLearning(config: DQNConfigFlat) {
             val dones = sample.dones
             val nextStates = sample.nextStates
 
-            mainManager.newSubManager().use { manager ->
-                val tdTarget = getTdTarget(manager, nextStates, dones, rewards)
+            for (i in 0 until batchSize) {
+                val state = states[i]
+                val action = actions[i]
+                val reward = rewards[i]
+                val done = dones[i]
+                val nextState = nextStates[i]
 
-                // gradient descent
-                gradientDescent(manager, states, actions, tdTarget)
+                val tdTarget: Vec = getTdTarget(nextState, done, reward)
+
+                qNet.train(state, tdTarget)
             }
+            qNet.network.updateFromLearning()
 
             if (globalStep % targetNetworkFrequency == 0) {
                 syncNets()
@@ -127,59 +121,25 @@ class DeepQLearning(config: DQNConfigFlat) {
         }
     }
 
-    private fun gradientDescent(
-        manager: NDManager,
-        states: Array<FloatArray>,
-        actions: IntArray,
-        tdTarget: NDArray?
-    ) {
-        Engine.getInstance().newGradientCollector().use { collector ->
-            val loss = getLoss(manager, states, actions, tdTarget)
-            collector.backward(loss)
-            updateParams()
-        }
+    private fun getTdTarget(nextState: FloatArray, done: Float, reward: Float): Vec {
+        return Vec()
     }
 
-    private fun getLoss(
-        manager: NDManager,
-        states: Array<FloatArray>,
-        actions: IntArray,
-        tdTarget: NDArray?
-    ): NDArray? {
-        val ps = ParameterStore(manager, false)
-
-        val obsOutput: NDArray = qNet.forward(ps, NDList(manager.create(states))).singletonOrThrow()
-        val actionsTensor = manager.create(actions).reshape(batchSize.toLong(), 1)
-
-        val oldVal = obsOutput.gather(actionsTensor, 1).squeeze()
-        val loss = lossFunc.evaluate(NDList(oldVal), NDList(tdTarget))
-        return loss
-    }
-
-    private fun updateParams() {
-        for (params in qNet.getParameters()) {
-            val paramsArr = params.value.getArray()
-            optimizer.update(params.key, paramsArr, paramsArr.gradient)
-        }
-        qNet.zeroGradients()
-    }
-
-    private fun getTdTarget(
-        manager: NDManager,
-        nextStates: Array<FloatArray>,
-        dones: FloatArray,
-        rewards: FloatArray
-    ): NDArray? {
-        val output: NDArray =
-            targetNet.predict(NDList(manager.create(nextStates))).singletonOrThrow().duplicate()
-
-        val targetMax = output.max(intArrayOf(1))
-        val donesTensor = manager.create(dones).flatten()
-        val ones = manager.ones(donesTensor.shape)
-        val tdTarget = manager.create(rewards).flatten()
-            .add(manager.create(gamma).mul(targetMax).mul(ones.sub(donesTensor)))
-        return tdTarget
-    }
+//    private fun getTdTarget(
+//        nextStates: Array<FloatArray>,
+//        dones: FloatArray,
+//        rewards: FloatArray
+//    ): NDArray? {
+//        val output: NDArray =
+//            targetNet.predict(NDList(manager.create(nextStates))).singletonOrThrow().duplicate()
+//
+//        val targetMax = output.max(intArrayOf(1))
+//        val donesTensor = manager.create(dones).flatten()
+//        val ones = manager.ones(donesTensor.shape)
+//        val tdTarget = manager.create(rewards).flatten()
+//            .add(manager.create(gamma).mul(targetMax).mul(ones.sub(donesTensor)))
+//        return tdTarget
+//    }
 
     private fun linearSchedule(startE: Float, endE: Float, duration: Float, t: Int): Float {
         val slope = (endE - startE) / duration
@@ -201,10 +161,8 @@ class DeepQLearning(config: DQNConfigFlat) {
         return if (r < epsilon) {
             Random.nextInt(numActions)
         } else {
-            mainManager.newSubManager().use { manager ->
-                val score: NDArray = qNet.predict(NDList(manager.create(state))).singletonOrThrow()
-                score.argMax().getLong().toInt()
-            }
+            val results = qNet.evaluate(state)
+            results.maxIndex()
         }
     }
 

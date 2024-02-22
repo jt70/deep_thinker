@@ -149,9 +149,17 @@ class DeepQLearning(config: DQNConfigFlat) {
         val ps = ParameterStore(manager, false)
 
         val obsOutput: NDArray = qNet.forward(ps, NDList(manager.create(states))).singletonOrThrow()
+        println("obsOutput shape: ${obsOutput.shape}")
+        println("obsOutput value: ${obsOutput.toDebugString(true)}")
+
         val actionsTensor = manager.create(actions).reshape(batchSize.toLong(), 1)
+        println("actionsTensor shape: ${actionsTensor.shape}")
+        println("actionsTensor value: ${actionsTensor.toDebugString(true)}")
 
         val oldVal = obsOutput.gather(actionsTensor, 1).squeeze()
+        println("oldVal shape: ${oldVal.shape}")
+        println("oldVal value: ${oldVal.toDebugString(true)}")
+
         val loss = lossFunc.evaluate(NDList(oldVal), NDList(tdTarget))
         return loss
     }
@@ -172,12 +180,26 @@ class DeepQLearning(config: DQNConfigFlat) {
     ): NDArray? {
         val output: NDArray =
             targetNet.predict(NDList(manager.create(nextStates))).singletonOrThrow().duplicate()
+        println("output shape: ${output.shape}")
+        println("output value: ${output.toDebugString(true)}")
 
         val targetMax = output.max(intArrayOf(1))
+        println("targetMax shape: ${targetMax.shape}")
+        println("targetMax value: ${targetMax.toDebugString(true)}")
+
         val donesTensor = manager.create(dones).flatten()
+        println("donesTensor shape: ${donesTensor.shape}")
+        println("donesTensor value: ${donesTensor.toDebugString(true)}")
+
         val ones = manager.ones(donesTensor.shape)
+        println("ones shape: ${ones.shape}")
+        println("ones value: ${ones.toDebugString(true)}")
+
         val tdTarget = manager.create(rewards).flatten()
             .add(manager.create(gamma).mul(targetMax).mul(ones.sub(donesTensor)))
+        println("tdTarget shape: ${tdTarget.shape}")
+        println("tdTarget value: ${tdTarget.toDebugString(true)}")
+
         return tdTarget
     }
 

@@ -17,6 +17,11 @@ class Vec {
         data = DoubleArray(size)
     }
 
+    constructor(floatData: FloatArray) {
+        data = DoubleArray(floatData.size)
+        for (i in floatData.indices) data[i] = floatData[i].toDouble()
+    }
+
     fun dimension(): Int {
         return data.size
     }
@@ -140,5 +145,17 @@ class Vec {
 
     fun sumElements(): Double {
         return DoubleStream.of(*data).sum()
+    }
+
+    fun maxIndex(): Int {
+        var maxIndex = 0
+        for (i in 1 until data.size)
+            if (data[i] > data[maxIndex])
+                maxIndex = i
+        return maxIndex
+    }
+
+    fun copy(): Vec {
+        return Vec(data.copyOf())
     }
 }
