@@ -1,4 +1,4 @@
-package org.deep_thinker.agent.dqn
+package org.deep_thinker.agent.dqn.djl
 
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Promise
@@ -7,6 +7,7 @@ import org.deep_thinker.serde.DQNConfigFlatSerde
 import org.deep_thinker.serde.IntFlatSerde
 
 class DQNAgentFactoryVerticle : AbstractVerticle() {
+    val activeAgents = mutableSetOf<String>()
     val intSerde = IntFlatSerde()
     val dqnConfigSerde = DQNConfigFlatSerde()
     override fun start(startPromise: Promise<Void>) {
@@ -21,9 +22,13 @@ class DQNAgentFactoryVerticle : AbstractVerticle() {
 
     private fun createDQNAgent(message: Message<ByteArray>) {
         val config = dqnConfigSerde.deserialize(message.body())
-        vertx.deployVerticle(DeepQLearningAgentVerticle(config))
-        println("DQN agentCreated")
-
+        if (!activeAgents.contains(config.agentId())) {
+            activeAgents.add(config.agentId())
+            vertx.deployVerticle(DeepQLearningAgentVerticle(config))
+            println("DQN agentCreated for id: ${config.agentId()}")
+        } else {
+            println("DQN agent already exists for id: ${config.agentId()}")
+        }
         message.reply(intSerde.serialize(0))
     }
 }

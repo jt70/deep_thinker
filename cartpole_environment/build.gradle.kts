@@ -1,12 +1,29 @@
 plugins {
     id("java")
+    id("maven-publish")
 }
 
-group = "org.deep_thinker"
+group = "cartpole_environment"
 version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
+    mavenLocal()
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            groupId = "org.deep_thinker"
+            artifactId = "cartpole_environment"
+            version = "1.0-SNAPSHOT"
+
+            from(components["java"])
+        }
+    }
+    repositories {
+        mavenLocal()
+    }
 }
 
 dependencies {

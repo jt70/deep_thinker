@@ -20,6 +20,7 @@ val junitJupiterVersion = "5.9.1"
 
 dependencies {
     implementation(project(":model"))
+    implementation(project(":deep_learning"))
     implementation("com.google.flatbuffers:flatbuffers-java:23.5.26")
     implementation(platform("io.vertx:vertx-stack-depchain:$vertxVersion"))
     implementation("io.vertx:vertx-lang-kotlin")
@@ -32,6 +33,8 @@ dependencies {
     implementation("ai.djl:model-zoo")
     implementation("ai.djl.pytorch:pytorch-engine")
     implementation("ai.djl.pytorch:pytorch-model-zoo")
+
+    implementation("org.slf4j:slf4j-simple:2.0.12")
 }
 
 tasks.test {
