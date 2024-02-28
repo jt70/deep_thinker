@@ -133,7 +133,7 @@ class NeuralNetwork(nb: Builder) {
         return gsonBuilder.create().toJson(NetworkState(this))
     }
 
-    fun copyParams(sourceNetwork: NeuralNetwork) {
+    fun copyParamsFrom(sourceNetwork: NeuralNetwork) {
         sourceNetwork.getLayers().forEachIndexed { index, layer ->
             if (layer.getWeights() != null) {
                 getLayers()[index].setWeights(layer.getWeights()!!.copy())

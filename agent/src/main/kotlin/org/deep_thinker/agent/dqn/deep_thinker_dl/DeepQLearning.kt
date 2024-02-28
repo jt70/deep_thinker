@@ -1,7 +1,5 @@
 package org.deep_thinker.agent.dqn.deep_thinker_dl
 
-import ai.djl.ndarray.NDArray
-import ai.djl.ndarray.NDManager
 import com.google.flatbuffers.FloatVector
 import org.deep_thinker.dl.math.Vec
 import org.deep_thinker.model.DQNConfigFlat
@@ -109,11 +107,11 @@ class DeepQLearning(config: DQNConfigFlat) {
                 val done = dones[i]
                 val nextState = nextStates[i]
 
-                val tdTarget: Vec = getTdTarget(nextState, done, reward)
+                val tdTarget: Vec = getTdTarget(nextState, done, reward, action)
 
                 qNet.train(state, tdTarget)
             }
-            qNet.network.updateFromLearning()
+            qNet.updateFromLearning()
 
             if (globalStep % targetNetworkFrequency == 0) {
                 syncNets()
@@ -121,25 +119,16 @@ class DeepQLearning(config: DQNConfigFlat) {
         }
     }
 
-    private fun getTdTarget(nextState: FloatArray, done: Float, reward: Float): Vec {
-        return Vec()
-    }
+    private fun getTdTarget(nextState: FloatArray, done: Float, reward: Float, action: Int): Vec {
+        val targetNetworkNext = targetNet.evaluate(nextState)
+        val tdTarget = Vec(targetNetworkNext.dimension())
 
-//    private fun getTdTarget(
-//        nextStates: Array<FloatArray>,
-//        dones: FloatArray,
-//        rewards: FloatArray
-//    ): NDArray? {
-//        val output: NDArray =
-//            targetNet.predict(NDList(manager.create(nextStates))).singletonOrThrow().duplicate()
-//
-//        val targetMax = output.max(intArrayOf(1))
-//        val donesTensor = manager.create(dones).flatten()
-//        val ones = manager.ones(donesTensor.shape)
-//        val tdTarget = manager.create(rewards).flatten()
-//            .add(manager.create(gamma).mul(targetMax).mul(ones.sub(donesTensor)))
-//        return tdTarget
-//    }
+        val targetMax = targetNetworkNext.max()
+
+        for (i in targetNetworkNext.data.indices) tdTarget.data[i] = if (i == action) reward.toDouble() + (gamma * targetMax * (1.0 - done)) else Double.NaN
+
+        return tdTarget
+    }
 
     private fun linearSchedule(startE: Float, endE: Float, duration: Float, t: Int): Float {
         val slope = (endE - startE) / duration
@@ -167,6 +156,6 @@ class DeepQLearning(config: DQNConfigFlat) {
     }
 
     protected fun syncNets() {
-        targetNet.copyParams(qNet)
+        targetNet.copyParamsFrom(qNet)
     }
 }

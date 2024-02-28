@@ -3,7 +3,8 @@ package org.deep_thinker.cartpole_dqn;
 import com.google.flatbuffers.FlatBufferBuilder;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
-import org.deep_thinker.agent.dqn.djl.DQNAgentFactoryVerticle;
+//import org.deep_thinker.agent.dqn.djl.DQNAgentFactoryVerticle;
+import org.deep_thinker.agent.dqn.deep_thinker_dl.DQNAgentFactoryVerticle;
 import org.deep_thinker.env.cartpole.Cartpole;
 import org.deep_thinker.model.DQNConfigFlat;
 import org.deep_thinker.model.DeepThinkerClient;
@@ -24,7 +25,7 @@ public class CartpoleDQNDJLTest {
 
     @BeforeAll
     public static void setUp() {
-        Vertx vertx = Vertx.vertx(new VertxOptions().setBlockedThreadCheckInterval(1000 * 60 * 60));
+        Vertx vertx = Vertx.vertx(new VertxOptions().setBlockedThreadCheckInterval(1000 * 60 * 60 * 10));
 
         vertx.deployVerticle(new DQNAgentFactoryVerticle());
 
@@ -63,7 +64,7 @@ public class CartpoleDQNDJLTest {
         ByteBuffer buffer = ByteBuffer.wrap(builder.sizedByteArray());
         var config = DQNConfigFlat.getRootAsDQNConfigFlat(buffer);
 
-        int totalEpisodes = 5000;
+        int totalEpisodes = 50000;
         client.createDQNAgent(config).get(50, TimeUnit.SECONDS);
         Thread.sleep(500);
 

@@ -158,4 +158,19 @@ class Vec {
     fun copy(): Vec {
         return Vec(data.copyOf())
     }
+
+    fun subZeroNan(u: Vec): Vec {
+        assertCorrectDimension(u.dimension())
+
+        val result = DoubleArray(u.dimension())
+
+        for (i in data.indices) {
+            result[i] = if (data[i].isNaN() || u.data[i].isNaN())
+                0.0
+            else
+                data[i] - u.data[i]
+        }
+
+        return Vec(result)
+    }
 }
