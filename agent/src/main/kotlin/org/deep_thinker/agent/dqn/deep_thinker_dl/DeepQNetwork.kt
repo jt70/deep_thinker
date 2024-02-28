@@ -6,6 +6,8 @@ import org.deep_thinker.dl.math.Vec
 import org.deep_thinker.dl.network.Layer
 import org.deep_thinker.dl.network.NeuralNetwork
 import org.deep_thinker.dl.optimizer.GradientDescent
+import org.deep_thinker.dl.optimizer.Momentum
+import org.deep_thinker.dl.optimizer.Nesterov
 
 class DeepQNetwork(
     numInputs: Int,
@@ -18,7 +20,7 @@ class DeepQNetwork(
             .addLayer(Layer(hiddenSizes[1], Activation.ReLU, 0.5))
             .addLayer(Layer(numActions, Activation.Identity, 0.5))
             .setCostFunction(DeepQLearningMSE())
-            .setOptimizer(GradientDescent(learningRate.toDouble()))
+            .setOptimizer(Nesterov(learningRate.toDouble()))
             .initWeights(XavierNormal())
             .create()
 
