@@ -28,12 +28,6 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
     testImplementation("org.junit.jupiter:junit-jupiter:$junitJupiterVersion")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
-    implementation(platform("ai.djl:bom:0.25.0"))
-    implementation("ai.djl:api")
-    implementation("ai.djl:model-zoo")
-    implementation("ai.djl.pytorch:pytorch-engine")
-    implementation("ai.djl.pytorch:pytorch-model-zoo")
-
     implementation("org.slf4j:slf4j-simple:2.0.12")
 }
 
