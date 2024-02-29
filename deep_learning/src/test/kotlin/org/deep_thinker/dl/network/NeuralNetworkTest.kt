@@ -363,6 +363,37 @@ class NeuralNetworkTest {
         println("Evaluate 2: $evaluate")
     }
 
+    @Test
+    fun testCopy() {
+        val networka: NeuralNetwork =
+            NeuralNetwork.Builder(2)
+                .addLayer(Layer(2, ReLU, 0.5))
+                .addLayer(Layer(2, Sigmoid, 0.5))
+                .initWeights(XavierNormal())
+                .create()
+
+        val networkb: NeuralNetwork =
+            NeuralNetwork.Builder(2)
+                .addLayer(Layer(2, ReLU, 0.5))
+                .addLayer(Layer(2, Sigmoid, 0.5))
+                .initWeights(XavierNormal())
+                .create()
+
+        networka.copyParamsFrom(networkb)
+
+        val i1: Vec = Vec(doubleArrayOf(0.1, 0.7))
+        val i2: Vec = Vec(doubleArrayOf(-0.2, 0.3))
+
+        var out1a = networka.evaluate(i1)
+        var out2a = networka.evaluate(i2)
+
+        var out1b = networkb.evaluate(i1)
+        var out2b = networkb.evaluate(i2)
+
+        assertEquals(out1a.getOutput(), out1b.getOutput())
+        assertEquals(out2a.getOutput(), out2b.getOutput())
+    }
+
     companion object {
         private const val EPS = 0.00001
     }
